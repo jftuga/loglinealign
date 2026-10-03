@@ -1,0 +1,4 @@
+# Configure dependency builds for this single-package project.
+# esbuild's installation script prepares its platform-specific executable.
+allowBuilds:
+  esbuild: true
