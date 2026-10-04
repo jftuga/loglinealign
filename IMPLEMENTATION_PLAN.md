@@ -1,6 +1,6 @@
-# loglinealign v0.2.0 implementation plan
+# loglinealign v0.3.0 implementation plan
 
-This document is the self-contained implementation handoff for loglinealign v0.2.0. It incorporates the final decisions from the project discussion; the earlier PROJECT*.md discussion files and chat history are not needed. No application code has been written.
+This document is the self-contained implementation handoff for loglinealign v0.3.0. It incorporates the final decisions from the project discussion; the earlier PROJECT*.md discussion files and chat history are not needed. No application code has been written.
 
 ## Instructions for a fresh implementation session
 
@@ -80,7 +80,7 @@ Input files are the final positional arguments. At least one input is required. 
 `--version` emits these two uncolored lines, followed by a newline:
 
 ```text
-loglinealign v0.2.0
+loglinealign v0.3.0
 https://github.com/jftuga/loglinealign
 ```
 
@@ -159,11 +159,13 @@ Place a matching up/down-arrow button immediately to the right of the horizontal
 
 Each newly added file starts checked. Each row shows its filename, source color, an editable field labeled "Format override (optional)", a separate read-only "Detected format" value, status or error, inclusion checkbox, and remove button. Automatic detection never populates the override field. Display the detected value only after successful automatic parsing of a selected nonempty file; show a dash for errors, pending/in-progress merges, excluded/empty files, and explicit overrides. Identify successful overrides in the status text, and preserve user-entered overrides after errors. Files with identical names remain distinct inputs. Removing a file releases its cached content and immediately recomputes the merge; unchecking a file keeps it loaded for later inclusion. Removal affects only browser state and never deletes or changes a file on disk. Remaining files retain their existing colors and source labels.
 
+When all Format override fields are blank, entering a nonblank override in the first file's field and leaving it copies the complete value to every remaining loaded file's field once. Wait for focus to leave the field rather than copying while typing. Preserve literal leading and trailing spaces; whitespace-only values count as blank. Do not copy if a remaining field already has a nonblank override. Subsequent edits to any field affect only that field; clearing every override enables copying again. Newly added files retain blank overrides, and removing the first file makes the next displayed file eligible under the same blank-field rule. Copied settings are marked pending and apply through Remerge or the next automatic merge.
+
 Adding files or changing inclusion checkboxes automatically merges the current selection. Changes to parsing settings are marked pending and can be applied with Remerge; an automatic merge also uses the current settings. Color and filename-display changes can update presentation immediately without reparsing timestamps.
 
 Expose a Reverse chronological order checkbox corresponding to `-r` / `--reverse`; changing it immediately recomputes the order from cached entries. Include a Show processing details checkbox corresponding to `-v` / `--verbose`, with diagnostics in a separate panel rather than the merged result or download. Timezone, per-file formats, filename visibility, color, and download filename also have browser controls.
 
-Use an unchecked-by-default **No filename (--no-filename)** checkbox for filename visibility. Checking it immediately hides generated prefixes in preview and download; unchecking restores aligned prefixes without reparsing. Highlight offsets account for the padded prefix, and pending downloads retain the filename-setting consistency check.
+Use an unchecked-by-default **No filename** checkbox for filename visibility. Checking it immediately hides generated prefixes in preview and download; unchecking restores aligned prefixes without reparsing. Highlight offsets account for the padded prefix, and pending downloads retain the filename-setting consistency check.
 
 When no files are selected, show an empty state and disable downloading. Selected empty files contribute no entries; if the entire selected set is empty, show an empty result and disable downloading. If all nonempty selected files need a fallback timezone and none is supplied, validate all files, then assume UTC and display a warning outside the preview/download text, independently of verbose mode. Leave the timezone input blank and identify UTC as assumed in source diagnostics. Reevaluate eligibility on every selection change, including cache reuse. CLI warnings go to STDERR. Other parsing errors and mixed-selection missing-timezone errors block downloading. An excluded file's errors do not block the selected files. Also disable downloading while parsing settings are pending or the newest merge is in progress, so an obsolete result cannot be downloaded as if it reflected the current settings.
 
@@ -240,6 +242,7 @@ Provide a `make clean` target using `rm -rf` that removes only the generated-pro
 - Build both artifacts through Make and launch the CLI with `node dist/loglinealign.js`.
 - Open the generated HTML directly from disk with networking unavailable; verify file loading, merging, controls, and downloads.
 - Verify automatic merges on drop and selection, stable colors, pending parsing settings, and no obsolete result replacing a newer one.
+- Verify first-field override copying only on leaving the field, independent subsequent edits, re-enabling after clearing all fields, preservation of literal spaces, whitespace-only handling, protection of existing overrides, pending/download blocking and Remerge, blank overrides on newly added files, and eligibility after removing the first file.
 - Verify browser reverse ordering, verbose details, horizontal/vertical expand-collapse controls both independently and together, and automatic remerging after file removal. Confirm vertical expansion restores the header/footer on collapse and refreshes visible rows on resizing. Removal must not alter files on disk or reassign surviving source colors and labels.
 - Verify timestamped default download names and preservation of custom names.
 - Confirm downloaded browser output matches CLI plain-text output for equivalent inputs and settings.

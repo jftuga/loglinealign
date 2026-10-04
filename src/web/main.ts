@@ -289,7 +289,25 @@ function renderFiles(): void {
     format.spellcheck = false;
     format.setAttribute('aria-label', `Format override (optional) for ${source.label}`);
     format.setAttribute('aria-describedby', 'format-help');
-    format.addEventListener('input', () => { source.format = format.value; markPending(); });
+    let copyFormatOnBlur = false;
+    format.addEventListener('input', () => {
+      // Remember the blank starting state while the user types the full override.
+      if (source === sources[0] && sources.every(item => !item.format.trim())) copyFormatOnBlur = true;
+      source.format = format.value;
+      markPending();
+    });
+    format.addEventListener('blur', () => {
+      const shouldCopy = copyFormatOnBlur;
+      copyFormatOnBlur = false;
+      if (!shouldCopy || source !== sources[0] || !source.format.trim()) return;
+      const remaining = sources.slice(1);
+      if (!remaining.length || remaining.some(item => item.format.trim())) return;
+      for (const item of remaining) {
+        item.format = source.format;
+        element<HTMLInputElement>(`format-${item.id}`).value = source.format;
+      }
+      markPending();
+    });
     const formatLabel = document.createElement('label');
     formatLabel.className = 'format-label';
     formatLabel.htmlFor = format.id;

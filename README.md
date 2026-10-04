@@ -67,7 +67,7 @@ Errors and verbose diagnostics go to STDERR. Verbose output includes source name
 `--version` prints exactly these two uncolored lines and a final newline:
 
 ```text
-loglinealign v0.2.0
+loglinealign v0.3.0
 https://github.com/jftuga/loglinealign
 ```
 
@@ -154,7 +154,7 @@ In both CLI and browser output, filenames are right-justified with spaces inside
 [vmstat_1.log] procs -
 ```
 
-Use `-N` / `--no-filename`, or the browser's **No filename (--no-filename)** checkbox, to omit the entire prefix and its padding.
+Use `-N` / `--no-filename`, or the browser's **No filename** checkbox, to omit the entire prefix and its padding.
 
 For example, a banner before a file's first `10:00:02` entry remains with that entry when a later `10:00:00` entry sorts ahead of it. Reversing chronology does not reverse a stack trace.
 
@@ -164,8 +164,8 @@ Open `dist/loglinealign.html` directly from disk in a modern browser supporting 
 
 1. Drop files on the drop zone or use **Choose files**. Newly added files are selected and automatically merged.
 2. Inspect each source's label, color, **Detected format**, counts, or error. Detected format is a separate read-only result of successful automatic parsing; it never fills the editable field. A dash appears for excluded files, empty files, parsing errors, pending settings, merges in progress, and files using an explicit override. Uncheck a file to exclude it while retaining its cache; use its remove button to remove it from the session. Disk files are never changed. Surviving labels and colors do not change on removal. Duplicate names remain distinct; adding a duplicate may first add numeric suffixes to existing labels.
-3. Leave **Format override (optional)** blank for automatic detection. Enter a format there only when an override is needed; successful overrides are identified in the file's status text. If every nonempty selected file needs a timezone, a warning explains that UTC is assumed. Enter a fallback timezone to override this assumption or resolve mixed-selection timezone errors, then select **Remerge**. Changes are marked pending; an automatic merge from adding, including, excluding, or removing files also applies current settings. Your typed override is preserved after errors, so you can correct it.
-4. Toggle reverse order to reorder cached entries immediately. Check **No filename (--no-filename)** to hide source prefixes in both preview and download; uncheck it to restore them. It is unchecked by default. Filename and color changes apply without reparsing. Processing details appear separately from the merged result and download. If parsing edits are pending, reversing continues to use the last applied parsing settings and downloading remains disabled.
+3. Leave **Format override (optional)** blank for automatic detection. Enter a format there only when an override is needed. When all overrides are blank, filling the first field and leaving it copies its value to the remaining fields once. Later edits affect only the edited field; clearing every override enables copying again. Successful overrides are identified in the file's status text. If every nonempty selected file needs a timezone, a warning explains that UTC is assumed. Enter a fallback timezone to override this assumption or resolve mixed-selection timezone errors, then select **Remerge**. Changes are marked pending; an automatic merge from adding, including, excluding, or removing files also applies current settings. Your typed override is preserved after errors, so you can correct it.
+4. Toggle reverse order to reorder cached entries immediately. Check **No filename** to hide source prefixes in both preview and download; uncheck it to restore them. It is unchecked by default. Filename and color changes apply without reparsing. Processing details appear separately from the merged result and download. If parsing edits are pending, reversing continues to use the last applied parsing settings and downloading remains disabled.
 5. Use the horizontal-arrow button to expand the result to the available page width, then use it again to restore sources and settings.
 6. Use **Filter logs** above the preview to keep matching physical lines, or select **Invert match** to keep nonmatching lines (`grep -v`). The filter applies to both preview and download. Matching text is highlighted in the preview. Matching options have descriptions on hover or keyboard focus and remain available in expanded mode.
 7. Download the complete current result as plain text, including all retained lines when a filter is active. The download honors filenames and ordering, and never inserts highlights or ANSI colors. Leave the filename field blank for `merge--YYYYmmdd.HHMMSS.log`, generated from the browser's local clock at download time. Enter a custom name to retain it across downloads.
