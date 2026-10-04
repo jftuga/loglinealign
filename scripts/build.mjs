@@ -1,6 +1,7 @@
 /** Bundle the Node CLI or embed all browser assets into one HTML document. Version and repository metadata come exclusively from package.json. */
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
-import { build } from 'esbuild';
+import { build, transform } from 'esbuild';
+import { minify } from 'html-minifier-terser';
 
 const metadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const define = { __VERSION__: JSON.stringify(metadata.version), __REPOSITORY__: JSON.stringify(metadata.repository) };
@@ -15,10 +16,13 @@ if (target === 'cli' || target === 'all') {
   });
 }
 if (target === 'web' || target === 'all') {
-  const worker = await build({ entryPoints: ['src/web/worker.ts'], bundle: true, platform: 'browser', target: 'es2022', format: 'iife', write: false });
-  const browser = await build({ entryPoints: ['src/web/main.ts'], bundle: true, platform: 'browser', target: 'es2022', format: 'iife', write: false, define: { ...define, __WORKER_CODE__: JSON.stringify(worker.outputFiles[0].text) } });
+  const worker = await build({ entryPoints: ['src/web/worker.ts'], bundle: true, minify: true, platform: 'browser', target: 'es2022', format: 'iife', write: false });
+  const browser = await build({ entryPoints: ['src/web/main.ts'], bundle: true, minify: true, platform: 'browser', target: 'es2022', format: 'iife', write: false, define: { ...define, __WORKER_CODE__: JSON.stringify(worker.outputFiles[0].text) } });
   const template = await readFile('src/web/index.html', 'utf8');
   const css = await readFile('src/web/styles.css', 'utf8');
+  const styles = await transform(css, { loader: 'css', minify: true, target: 'es2022' });
   const script = browser.outputFiles[0].text.replaceAll('</script', '<\\/script');
-  await writeFile('dist/loglinealign.html', template.replace('/* INLINE_STYLES */', () => css).replace('/* INLINE_SCRIPT */', () => script));
+  const html = template.replace('/* INLINE_STYLES */', () => styles.code).replace('/* INLINE_SCRIPT */', () => script);
+  // esbuild already minified the embedded assets; only collapse HTML whitespace and remove comments here.
+  await writeFile('dist/loglinealign.html', await minify(html, { collapseWhitespace: true, removeComments: true, minifyCSS: false, minifyJS: false }));
 }

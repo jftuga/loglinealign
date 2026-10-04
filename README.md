@@ -12,7 +12,7 @@ make check
 make
 ```
 
-Dependencies are development-only and pinned in `pnpm-lock.yaml`: TypeScript 5.9.3, esbuild 0.25.10, and Node type definitions 24.7.0. `pnpm-workspace.yaml` permits esbuild's installation script to prepare its platform executable. No runtime dependency installation is needed to use the generated artifacts. The build follows the [esbuild local installation and bundling workflow](https://esbuild.github.io/getting-started/); `make check` separately checks types because bundling does not do type checking.
+Dependencies are development-only and pinned in `pnpm-lock.yaml`: TypeScript 5.9.3, esbuild 0.25.10, html-minifier-terser 7.2.0, and Node type definitions 24.7.0. `pnpm-workspace.yaml` permits esbuild's installation script to prepare its platform executable. No runtime dependency installation is needed to use the generated artifacts. The build follows the [esbuild local installation and bundling workflow](https://esbuild.github.io/getting-started/); `make check` separately checks types because bundling does not do type checking.
 
 You can also run `pnpm check` for type checking and `pnpm build` to build both artifacts. Use pnpm for dependency changes and retain `pnpm-lock.yaml` as the project's only dependency lockfile.
 
@@ -21,13 +21,15 @@ You can also run `pnpm check` for type checking and `pnpm build` to build both a
 | `make install` | Install dependencies with `pnpm install --frozen-lockfile` |
 | `make` / `make all` | Both distributable artifacts |
 | `make cli` | `dist/loglinealign.js` |
-| `make web` | `dist/loglinealign.html`, with all assets embedded |
+| `make web` | Minified `dist/loglinealign.html`, with all assets embedded |
 | `make check` | Strict TypeScript checking, without emitted files |
 | `make clean` | Delete build output, installed dependencies, local pnpm store, TypeScript build caches, and pnpm debug logs with `rm -rf` |
 
 `make clean` uses `rm -rf` and matches the generated-project rules at the top of `.gitignore`. It preserves source files, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, input/output logs, `.env` files, and pnpm stores outside this repository. After cleaning, run `make install` before building again. Running `make clean` again when these generated files are absent is harmless.
 
 `make NODE=/path/to/node` selects a specific Node executable. `package.json` is the single source of version and repository metadata. Generated artifacts and `node_modules` are ignored by Git. The HTML can be copied anywhere without sibling files. The CLI `.js` artifact runs with Node 24+ without sibling files or a package.json, including inside projects configured for CommonJS or ES modules.
+
+The web build minifies its embedded application, worker, and CSS with esbuild, then collapses HTML whitespace and removes HTML comments with [html-minifier-terser](https://github.com/terser/html-minifier-terser). Minification applies only to `dist/loglinealign.html`; the CLI build (`dist/loglinealign.js`) remains unminified.
 
 ## CLI
 
@@ -65,7 +67,7 @@ Errors and verbose diagnostics go to STDERR. Verbose output includes source name
 `--version` prints exactly these two uncolored lines and a final newline:
 
 ```text
-loglinealign v0.1.0
+loglinealign v0.2.0
 https://github.com/jftuga/loglinealign
 ```
 
