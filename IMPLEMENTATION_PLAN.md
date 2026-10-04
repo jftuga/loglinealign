@@ -1,6 +1,6 @@
-# loglinealign v0.1.0 implementation plan
+# loglinealign v0.2.0 implementation plan
 
-This document is the self-contained implementation handoff for loglinealign v0.1.0. It incorporates the final decisions from the project discussion; the earlier PROJECT*.md discussion files and chat history are not needed. No application code has been written.
+This document is the self-contained implementation handoff for loglinealign v0.2.0. It incorporates the final decisions from the project discussion; the earlier PROJECT*.md discussion files and chat history are not needed. No application code has been written.
 
 ## Instructions for a fresh implementation session
 
@@ -80,7 +80,7 @@ Input files are the final positional arguments. At least one input is required. 
 `--version` emits these two uncolored lines, followed by a newline:
 
 ```text
-loglinealign v0.1.0
+loglinealign v0.2.0
 https://github.com/jftuga/loglinealign
 ```
 

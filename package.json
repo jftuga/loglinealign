@@ -1,6 +1,6 @@
 {
   "name": "loglinealign",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Merge text log entries chronologically in Node.js or an offline browser",
   "private": true,
   "type": "module",
@@ -12,6 +12,7 @@
   "devDependencies": {
     "@types/node": "24.7.0",
     "esbuild": "0.25.10",
+    "html-minifier-terser": "7.2.0",
     "typescript": "5.9.3"
   }
 }
