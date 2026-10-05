@@ -1,10 +1,13 @@
 /** Parse the CLI contract and keep argument validation separate from file processing. Option parsing stops at the first positional input. */
 import { fallbackTimezone } from '../core/timezone';
 import { createTimestampParser } from '../core/timestamp';
+import { parseTimeShift } from '../core/time_adjustment';
 
 export interface CliOptions {
   files: string[];
   formats: Map<string, string>;
+  timezones: Map<string, string>;
+  timeShifts: Map<string, bigint>;
   output?: string;
   timezone?: string;
   color?: boolean;
@@ -22,6 +25,8 @@ Options must precede inputs. Use -- for filenames beginning with a hyphen.
   -o PATH                Atomically write output; never replace an input
   --timezone UTC|±HH:MM   Fallback for timestamps without an explicit offset
   --format FILE FORMAT   Per-file format override (repeatable; exact input path)
+  --file-timezone FILE TZ Per-file fallback, UTC or ±HH:MM (repeatable)
+  --time-shift FILE ±HH:MM Per-file adjustment; positive=later (repeatable)
   --color                Force 256-color ANSI, including output files
   -n, --no-color         Disable generated colors (mutually exclusive with --color)
   -N, --no-filename      Omit source prefixes
@@ -49,8 +54,13 @@ Numeric month/day record timestamps require an override. Dates must be complete.
 
 If every nonempty input needs a fallback timezone and none is supplied,
 warn on STDERR and assume UTC. Empty files are ignored. Mixed selections
-with explicit-offset-only or epoch-only files still require --timezone.
-Explicit offsets always take precedence over the fallback.
+with explicit-offset-only or epoch-only files require --timezone or a
+--file-timezone for each unresolved file. Partial per-file assignments also
+require a fallback for remaining unresolved files. Empty files do not count.
+Explicit offsets/epochs take precedence, then per-file timezone, then global.
+Time shifts apply afterward to all entries, including explicit offsets/epochs.
+Shifts accept whole minutes and hours beyond 23; original log text is unchanged.
+Per-file options require exact input paths. Named regions/DST are unsupported.
 
 Inputs must be regular files and are read-only; named pipes are rejected.
 Shell redirection can truncate files before this program
@@ -58,7 +68,7 @@ starts: never use FILE > FILE. Use -o for application-controlled protection.
 `;
 
 export function parseOptions(args: string[]): CliOptions {
-  const options: CliOptions = { files: [], formats: new Map(), filename: true, reverse: false, verbose: false };
+  const options: CliOptions = { files: [], formats: new Map(), timezones: new Map(), timeShifts: new Map(), filename: true, reverse: false, verbose: false };
   let positional = false;
   for (let index = 0; index < args.length; index++) {
     const arg = args[index]!;
@@ -93,13 +103,27 @@ export function parseOptions(args: string[]): CliOptions {
         options.formats.set(file, format);
         break;
       }
+      case '--file-timezone': case '--time-shift': {
+        const file = args[++index];
+        const value = args[++index];
+        if (!file || !value) throw new Error(`${arg} requires FILE and VALUE.`);
+        const assignments = arg === '--file-timezone' ? options.timezones : options.timeShifts;
+        if (assignments.has(file)) throw new Error(`Duplicate ${arg} assignment for ${file}.`);
+        if (arg === '--file-timezone') {
+          fallbackTimezone(value);
+          options.timezones.set(file, value);
+        } else options.timeShifts.set(file, parseTimeShift(value));
+        break;
+      }
       default: throw new Error(`Unknown option ${arg}; see --help.`);
     }
   }
   if (options.action) return options;
   if (!options.files.length) throw new Error('At least one input file is required; see --help.');
-  for (const file of options.formats.keys()) {
-    if (options.files.filter(path => path === file).length !== 1) throw new Error(`Format target ${file} must identify exactly one positional input, using the same path spelling.`);
+  for (const [option, assignments] of [['--format', options.formats], ['--file-timezone', options.timezones], ['--time-shift', options.timeShifts]] as const) {
+    for (const file of assignments.keys()) {
+      if (options.files.filter(path => path === file).length !== 1) throw new Error(`${option} target ${file} must identify exactly one positional input, using the same path spelling.`);
+    }
   }
   return options;
 }

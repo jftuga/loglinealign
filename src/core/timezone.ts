@@ -1,5 +1,5 @@
 /** Validate fixed UTC offsets independently of the host timezone. Offsets are minutes east of UTC. */
-export const missingTimezoneMessage = 'Timestamp has no timezone; supply --timezone UTC or ±HH:MM (browser: Fallback timezone).';
+export const missingTimezoneMessage = 'Timestamp has no timezone; supply --file-timezone FILE UTC|±HH:MM or --timezone UTC|±HH:MM (browser: File timezone or Fallback timezone).';
 
 export function parseTimezone(value: string): number {
   if (value === 'UTC' || value === 'Z') return 0;
@@ -16,4 +16,10 @@ export function fallbackTimezone(value?: string): number | undefined {
   if (value === undefined || value === '') return undefined;
   if (value === 'Z') throw new Error('Use UTC for the fallback timezone, or an offset such as +02:00.');
   return parseTimezone(value);
+}
+
+export function describeTimezone(usedFallback: boolean, fileTimezone?: string, globalTimezone?: string): string {
+  const assigned = fileTimezone ? `file timezone ${fileTimezone}` : globalTimezone ? `fallback ${globalTimezone} (global)` : '';
+  if (usedFallback) return assigned || 'fallback UTC (assumed)';
+  return `explicit/epoch or empty${assigned ? `; ${assigned} unused` : ''}`;
 }

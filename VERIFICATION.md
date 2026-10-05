@@ -156,7 +156,7 @@ README, the implementation plan, CLI help, and embedded browser help were update
 
 ## Filename alignment and browser suppression
 
-Both interfaces now right-justify source labels with leading spaces inside brackets, using the longest selected label, including duplicate-name suffixes and selected empty files. The browser's unchecked-by-default **No filename (--no-filename)** checkbox replaces the former Show source filenames control and suppresses prefixes in both preview and download without reparsing. Filtering retains the selection's width; inclusion and removal recalculate it.
+Both interfaces now right-justify source labels with leading spaces inside brackets, using the longest selected label, including duplicate-name suffixes and selected empty files. The browser's unchecked-by-default **No filename** checkbox replaces the former Show source filenames control and suppresses prefixes in both preview and download without reparsing. Filtering retains the selection's width; inclusion and removal recalculate it.
 
 Passed `make check all` with Node.js 26.8.1 and 24.10.0, rebuilding both standalone artifacts, and passed `git diff --check`. Focused CLI checks verified exact padding on timestamp, leading, continuation, and blank lines; both suppression aliases; forced ANSI output; reverse order; file output; duplicate basenames; and a selected empty file with the longest name. The supplied `vmstat.log` and `vmstat_1.log` produced the requested `[  vmstat.log]` and `[vmstat_1.log]` prefixes.
 
@@ -179,6 +179,12 @@ Grouped project-generated paths at the top of `.gitignore` and added a matching 
 The original cleanup implementation passed `make check all` before cleanup and `git diff --check`. Verified each cleanup pattern is ignored, while source/configuration files and both pnpm YAML files remain eligible for version control. Ran `make clean` twice in a temporary fixture and twice in the project. The fixture confirmed removal of every generated path, preservation of logs/environment files/lockfiles, and removal of a pnpm-store symlink without altering its external target. Source and configuration hashes were unchanged, excluding an independent concurrent edit to AGENTS.md and this updated verification record. The project was left clean, with no ignored files reported by `git ls-files --others --ignored --exclude-standard`; run `pnpm install --frozen-lockfile` before rebuilding.
 
 The cleanup command was subsequently changed to `rm -rf` with the same explicit paths. Verified command expansion with `make -n clean`; cleanup was not executed again for that command change.
+
+## Browser override copying
+
+When every Format override is blank, entering an override in the first field copies its complete value to the remaining fields when focus leaves it. Later edits remain independent; clearing all fields enables copying again. Literal leading and trailing spaces are preserved, whitespace-only fields count as blank, and existing nonblank overrides prevent copying. Updated README and embedded UI help describe the behavior; the implementation plan records the rules and acceptance checks.
+
+Passed `make check web` with Node.js 26.8.1, rebuilding the standalone HTML, and `git diff --check`. Offline headless Chrome verified no copying during typing, copying on Tab, independent edits to both the first and subsequent fields, re-enabling after clearing every field, exact preservation of spaces, whitespace-only handling, and protection of an existing override. It also verified disabled downloading while changes are pending, successful Remerge, blank overrides on newly added files, and copying from the new first field after removal. No page errors occurred. Chrome initially could not launch inside the sandbox; the same local browser verification passed outside it. Checks ran from an inline command without adding test files or dependencies.
 
 ## Verification limits
 
