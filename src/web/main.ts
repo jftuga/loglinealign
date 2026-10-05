@@ -3,6 +3,7 @@ import { sourceColor } from '../core/colors';
 import { sourceLabels } from '../core/format';
 import { describeTimezone } from '../core/timezone';
 import { formatTimeShift, parseTimeShift } from '../core/time_adjustment';
+import { defaultFilenameTemplate, expandFilenameTemplate } from '../core/filename_template';
 import { createFilter } from './filter';
 import { createTimeControls } from './time_controls';
 import { initializeFileDrop } from './file_drop';
@@ -27,6 +28,7 @@ const color = element<HTMLInputElement>('color');
 const verbose = element<HTMLInputElement>('verbose');
 const download = element<HTMLButtonElement>('download');
 const downloadName = element<HTMLInputElement>('download-name');
+const downloadPreview = element<HTMLParagraphElement>('download-preview');
 const viewport = element<HTMLDivElement>('viewport');
 const rows = element<HTMLDivElement>('rows');
 const spacer = element<HTMLDivElement>('spacer');
@@ -55,6 +57,8 @@ let downloading = false;
 let frame = 0;
 let worker: Worker;
 let downloadPresentation = true;
+let downloadFilename = '';
+let invalidFilename = false;
 let filterRevision = 0;
 let filtering = false;
 let filterInFlight = false;
@@ -122,6 +126,7 @@ function selectTab(selected: HTMLButtonElement): void {
   }
   element('remerge-sources').hidden = selected.id !== 'sources-tab';
   element('remerge').hidden = selected.id !== 'settings-tab';
+  if (selected.id === 'download-tab') updateFilenamePreview();
   selected.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   viewport.scrollTop = scrollTop;
   scheduleView();
@@ -145,7 +150,7 @@ function navigateTabs(event: KeyboardEvent): void {
 }
 
 function updateDownload(): void {
-  download.disabled = !total || pending || busy || filtering || downloading || !errors.hidden || !filterError.hidden;
+  download.disabled = !total || pending || busy || filtering || downloading || invalidFilename || !errors.hidden || !filterError.hidden;
 }
 
 function readFilter(): FilterOptions {
@@ -471,17 +476,27 @@ function renderRows(message: Extract<WorkerResponse, { type: 'view' }>): void {
   rows.replaceChildren(fragment);
 }
 
-function datedFilename(): string {
-  const date = new Date();
-  const pad = (value: number): string => String(value).padStart(2, '0');
-  return `merge--${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}.${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}.log`;
+function updateFilenamePreview(): string | undefined {
+  let filename: string | undefined;
+  try {
+    filename = expandFilenameTemplate(downloadName.value.trim() || defaultFilenameTemplate, new Date());
+    downloadPreview.textContent = `Saves as: ${filename}`;
+    invalidFilename = false;
+  } catch (error) {
+    downloadPreview.textContent = error instanceof Error ? error.message : String(error);
+    invalidFilename = true;
+  }
+  downloadName.setAttribute('aria-invalid', String(invalidFilename));
+  downloadPreview.classList.toggle('bad', invalidFilename);
+  updateDownload();
+  return filename;
 }
 
-function saveDownload(blob: Blob): void {
+function saveDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = downloadName.value.trim() || datedFilename();
+  link.download = filename;
   document.body.append(link);
   link.click();
   link.remove();
@@ -548,7 +563,7 @@ function receive(event: MessageEvent<WorkerResponse>): void {
   } else if (message.type === 'download') {
     if (message.filterRevision !== filterRevision) return;
     downloading = false;
-    if (!pending && !busy && !filtering && filterError.hidden && downloadPresentation === !noFilename.checked) saveDownload(message.blob);
+    if (!pending && !busy && !filtering && filterError.hidden && downloadPresentation === !noFilename.checked) saveDownload(message.blob, downloadFilename);
     updateDownload();
   } else {
     warnings.hidden = true;
@@ -631,8 +646,13 @@ function initialize(): void {
   });
   viewport.addEventListener('scroll', scheduleView, { passive: true });
   new ResizeObserver(scheduleView).observe(viewport);
+  downloadName.addEventListener('input', updateFilenamePreview);
+  updateFilenamePreview();
   download.addEventListener('click', () => {
     if (download.disabled) return;
+    const filename = updateFilenamePreview();
+    if (filename === undefined) return;
+    downloadFilename = filename;
     downloading = true;
     downloadPresentation = !noFilename.checked;
     updateDownload();
