@@ -2,6 +2,7 @@
 import { decodeInput, parseEntries } from '../core/entries';
 import { resolveFallback } from '../core/fallback';
 import { mergeEntries } from '../core/merge';
+import { applyTimeShift, parseTimeShift } from '../core/time_adjustment';
 import { formatLine, outputChunks, sourceLabelWidth } from '../core/format';
 import { fallbackTimezone } from '../core/timezone';
 import { createFilter, filterEntries, matchRanges } from './filter';
@@ -49,13 +50,23 @@ async function merge(request: Extract<WorkerRequest, { type: 'merge' }>): Promis
   if (request.sources.some(source => source.included)) fallbackTimezone(request.timezone);
   const reports: FileReport[] = [];
   const errors: string[] = [];
-  const inputs: { source: Source; parsed: ParsedSource }[] = [];
-  const timezone = request.timezone || 'UTC';
+  const inputs: { source: Source; parsed: ParsedSource; timezone: string; timeShift: bigint }[] = [];
   for (const source of request.sources) {
     if (request.revision !== latestRevision) return;
     let stored = cache.get(source.id);
     if (!stored) { stored = { file: source.file }; cache.set(source.id, stored); }
     if (!source.included) continue;
+    let timeShift: bigint;
+    try {
+      fallbackTimezone(source.timezone);
+      timeShift = parseTimeShift(source.timeShift);
+    } catch (error) {
+      const message = `${source.label}: ${errorText(error)}`;
+      errors.push(message);
+      reports.push({ id: source.id, size: source.file.size, error: message });
+      continue;
+    }
+    const timezone = source.timezone || request.timezone || 'UTC';
     const reusable = stored.format === source.format && (stored.timezone === timezone || (stored.parsed && !stored.parsed.diagnostics.usedFallback));
     if (!reusable || (!stored.parsed && !stored.error)) {
       stored.parsed = undefined;
@@ -76,7 +87,7 @@ async function merge(request: Extract<WorkerRequest, { type: 'merge' }>): Promis
     if (stored.parsed) {
       // Labels can change when another file with the same name is first added.
       for (const entry of stored.parsed.entries) entry.source = source;
-      inputs.push({ source, parsed: stored.parsed });
+      inputs.push({ source, parsed: stored.parsed, timezone: source.timezone, timeShift });
     }
     reports.push({ id: source.id, size: source.file.size, diagnostics: stored.parsed?.diagnostics, error: stored.error, cached: Boolean(reusable) });
   }
@@ -87,7 +98,7 @@ async function merge(request: Extract<WorkerRequest, { type: 'merge' }>): Promis
     if (error) { report.error = error; errors.push(error); }
   }
   if (!errors.length) {
-    entries = mergeEntries(inputs.map(input => input.parsed.entries), request.reverse);
+    entries = mergeEntries(inputs.map(input => applyTimeShift(input.parsed.entries, input.timeShift)), request.reverse);
   }
   resultRevision = request.revision;
   const originalTotal = entries.reduce((sum, entry) => sum + entry.lines.length, 0);

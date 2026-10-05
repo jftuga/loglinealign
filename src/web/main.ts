@@ -1,7 +1,11 @@
 /** Manage local files, controls, and a bounded viewport for the standalone page. The embedded worker owns parsing, cached entries, ordering, filtering, and download generation. */
 import { sourceColor } from '../core/colors';
 import { sourceLabels } from '../core/format';
+import { describeTimezone } from '../core/timezone';
+import { formatTimeShift, parseTimeShift } from '../core/time_adjustment';
 import { createFilter } from './filter';
+import { createTimeControls } from './time_controls';
+import { initializeFileDrop } from './file_drop';
 import type { FilterOptions } from './filter';
 import type { FileReport, WebSource, WorkerRequest, WorkerResponse } from './protocol';
 
@@ -36,10 +40,11 @@ const filterWord = element<HTMLButtonElement>('filter-word');
 const filterRegex = element<HTMLButtonElement>('filter-regex');
 const filterInvert = element<HTMLInputElement>('filter-invert');
 const filterError = element<HTMLParagraphElement>('filter-error');
+const tabs = ['sources-tab', 'filter-tab', 'settings-tab', 'download-tab', 'help-tab'].map(id => element<HTMLButtonElement>(id));
 const sources: WebSource[] = [];
 const names: string[] = [];
 const reports = new Map<number, FileReport>();
-const appliedFormats = new Map<number, string>();
+const appliedSettings = new Map<number, Pick<WebSource, 'format' | 'timezone' | 'timeShift'>>();
 let appliedTimezone = '';
 let revision = 0;
 let viewRequest = 0;
@@ -64,6 +69,80 @@ const rowHeight = 22;
 const maxHeight = 8000000;
 
 function send(message: WorkerRequest): void { worker.postMessage(message); }
+
+/** Set one global visibility state for tab content, retaining navigation, merge actions, and status. */
+function setControlsCollapsed(collapsed: boolean): void {
+  const scrollTop = viewport.scrollTop;
+  const content = element('tool-content');
+  const result = element('result');
+  if (collapsed && !content.hidden) result.style.setProperty('--control-space', `${content.getBoundingClientRect().height}px`);
+  content.hidden = collapsed;
+  result.classList.toggle('controls-collapsed', collapsed);
+  element('collapse-controls').setAttribute('aria-expanded', String(!collapsed));
+  element('collapse-icon').textContent = collapsed ? '▸' : '▾';
+  element('collapse-label').textContent = collapsed ? 'Show controls' : 'Hide controls';
+  viewport.scrollTop = scrollTop;
+  scheduleView();
+}
+
+/** Keep preview-only mode independent of the selected tab and collapse state. */
+function setVerticalExpanded(expanded: boolean): void {
+  const scrollTop = viewport.scrollTop;
+  document.body.classList.toggle('expanded-vertical', expanded);
+  const button = element<HTMLButtonElement>('expand-vertical');
+  button.setAttribute('aria-expanded', String(expanded));
+  button.setAttribute('aria-label', expanded ? 'Restore normal results height' : 'Expand results to full window height');
+  button.title = expanded ? 'Restore normal results height' : 'Expand results vertically';
+  viewport.scrollTop = scrollTop;
+  element('result').scrollIntoView({ block: 'start' });
+  scheduleView();
+}
+
+/** Reveal new sources after a drop in Sources or preview-only mode. */
+function receiveDroppedFiles(files: FileList): void {
+  const expanded = document.body.classList.contains('expanded-vertical');
+  if (expanded) setVerticalExpanded(false);
+  const sourcesTab = element<HTMLButtonElement>('sources-tab');
+  if (expanded || sourcesTab.getAttribute('aria-selected') === 'true') {
+    selectTab(sourcesTab);
+    setControlsCollapsed(false);
+    if (expanded) sourcesTab.focus({ preventScroll: true });
+  }
+  addFiles(files);
+}
+
+/** Change the visible controls without rebuilding them or altering the current merge. */
+function selectTab(selected: HTMLButtonElement): void {
+  const scrollTop = viewport.scrollTop;
+  for (const tab of tabs) {
+    const active = tab === selected;
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+    element(tab.getAttribute('aria-controls')!).hidden = !active;
+  }
+  element('remerge-sources').hidden = selected.id !== 'sources-tab';
+  element('remerge').hidden = selected.id !== 'settings-tab';
+  selected.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  viewport.scrollTop = scrollTop;
+  scheduleView();
+}
+
+/** Use automatic tab activation for arrow keys, Home, and End. */
+function navigateTabs(event: KeyboardEvent): void {
+  const index = tabs.indexOf(event.currentTarget as HTMLButtonElement);
+  let next: number;
+  switch (event.key) {
+    case 'ArrowRight': next = (index + 1) % tabs.length; break;
+    case 'ArrowLeft': next = (index + tabs.length - 1) % tabs.length; break;
+    case 'Home': next = 0; break;
+    case 'End': next = tabs.length - 1; break;
+    default: return;
+  }
+  event.preventDefault();
+  const tab = tabs[next]!;
+  selectTab(tab);
+  tab.focus({ preventScroll: true });
+}
 
 function updateDownload(): void {
   download.disabled = !total || pending || busy || filtering || downloading || !errors.hidden || !filterError.hidden;
@@ -173,7 +252,7 @@ function markPending(): void {
   downloading = false;
   revision++;
   element('pending').hidden = false;
-  status.textContent = 'Parsing settings changed. Select Remerge to apply them.';
+  status.textContent = 'Merge settings changed. Select Remerge to apply them.';
   clearPreview();
   updateReports();
 }
@@ -188,21 +267,23 @@ function startMerge(useCurrentSettings = true): void {
   if (useCurrentSettings) {
     pending = false;
     appliedTimezone = timezone.value.trim();
-    for (const source of sources) appliedFormats.set(source.id, source.format.trim() ? source.format : '');
+    for (const source of sources) {
+      appliedSettings.set(source.id, { format: source.format.trim() ? source.format : '', timezone: source.timezone.trim(), timeShift: source.timeShift.trim() });
+    }
   }
   element('pending').hidden = !pending;
   errors.hidden = true;
   status.textContent = 'Merging selected files…';
   clearPreview();
   updateReports();
-  send({ type: 'merge', revision, sources: sources.map(source => ({ ...source, format: appliedFormats.get(source.id) ?? '' })), timezone: appliedTimezone, reverse: reverse.checked });
+  send({ type: 'merge', revision, sources: sources.map(source => ({ ...source, ...appliedSettings.get(source.id) })), timezone: appliedTimezone, reverse: reverse.checked });
 }
 
 function addFiles(files: FileList | File[]): void {
   for (const file of Array.from(files)) {
     const id = names.length;
     names.push(file.name);
-    sources.push({ id, order: id, name: file.name, label: file.name, file, included: true, format: '' });
+    sources.push({ id, order: id, name: file.name, label: file.name, file, included: true, format: '', timezone: '', timeShift: '+00:00' });
   }
   const labels = sourceLabels(names);
   for (const source of sources) source.label = labels[source.id]!;
@@ -215,22 +296,28 @@ function removeSource(id: number): void {
   if (index < 0) return;
   sources.splice(index, 1);
   reports.delete(id);
-  appliedFormats.delete(id);
+  appliedSettings.delete(id);
   renderFiles();
   startMerge();
+}
+
+function describeAppliedTime(source: WebSource, usedFallback: boolean): string {
+  const settings = appliedSettings.get(source.id);
+  const shift = parseTimeShift(settings?.timeShift ?? '+00:00');
+  return describeTimezone(usedFallback, settings?.timezone, appliedTimezone) + (shift ? `; time adjustment ${formatTimeShift(shift)}` : '');
 }
 
 function describeReport(source: WebSource): string {
   const report = reports.get(source.id);
   const prefix = `${source.file.size.toLocaleString()} bytes · `;
   if (!source.included) return prefix + 'Excluded' + (report?.error ? ` · ${report.error}` : '');
-  if (pending) return prefix + 'Parsing settings pending';
+  if (pending) return prefix + 'Merge settings pending';
   if (busy) return prefix + 'Merging…';
   if (report?.error) return report.error;
   if (!report?.diagnostics) return prefix + 'Waiting to merge';
   const d = report.diagnostics;
-  const format = appliedFormats.get(source.id) ? `${d.format} · ` : '';
-  return `${prefix}${format}${d.entries.toLocaleString()} entries · ${d.continuations.toLocaleString()} continuation lines · ${d.usedFallback ? `fallback ${appliedTimezone || 'UTC (assumed)'}` : 'explicit/epoch or empty'}`;
+  const format = appliedSettings.get(source.id)?.format ? `${d.format} · ` : '';
+  return `${prefix}${format}${d.entries.toLocaleString()} entries · ${d.continuations.toLocaleString()} continuation lines · ${describeAppliedTime(source, d.usedFallback)}`;
 }
 
 function updateReports(): void {
@@ -238,7 +325,7 @@ function updateReports(): void {
     const result = reports.get(source.id);
     const detected = document.getElementById(`detected-${source.id}`);
     if (detected) {
-      const automatic = !pending && !busy && source.included && !appliedFormats.get(source.id) && !result?.error && result?.diagnostics?.entries;
+      const automatic = !pending && !busy && source.included && !appliedSettings.get(source.id)?.format && !result?.error && result?.diagnostics?.entries;
       detected.textContent = automatic ? result.diagnostics!.format : '—';
     }
     const report = document.getElementById(`report-${source.id}`);
@@ -252,7 +339,7 @@ function updateReports(): void {
 function renderFiles(): void {
   const container = element('files');
   container.replaceChildren();
-  element('file-count').textContent = `${sources.length} file${sources.length === 1 ? '' : 's'}`;
+  element('file-count').textContent = `(${sources.length} file${sources.length === 1 ? '' : 's'})`;
   for (const source of sources) {
     const row = document.createElement('div');
     row.className = 'file-row';
@@ -323,7 +410,13 @@ function renderFiles(): void {
     const report = document.createElement('div');
     report.id = `report-${source.id}`;
     report.className = 'file-report';
-    row.append(heading, formatLabel, format, detectedLabel, detected, report);
+    const fields = document.createElement('div');
+    fields.className = 'file-fields';
+    const formatControls = document.createElement('div');
+    formatControls.className = 'format-controls';
+    formatControls.append(formatLabel, format, detectedLabel, detected);
+    fields.append(formatControls, createTimeControls(source, markPending));
+    row.append(heading, fields, report);
     container.append(row);
   }
   if (!sources.length) {
@@ -410,11 +503,11 @@ function receive(event: MessageEvent<WorkerResponse>): void {
     mergedReady = !message.errors.length;
     errors.hidden = !message.errors.length;
     errors.textContent = message.errors.join('\n');
-    status.textContent = message.errors.length ? 'Resolve the selected file errors to merge and download.' : pending ? 'Parsing settings pending. Select Remerge to apply them.' : 'Preparing preview…';
+    status.textContent = message.errors.length ? 'Resolve the selected file errors to merge and download.' : pending ? 'Merge settings pending. Select Remerge to apply them.' : 'Preparing preview…';
     element('diagnostics').textContent = message.reports.map(report => {
       const source = sources.find(item => item.id === report.id)!;
       const d = report.diagnostics;
-      return `${source.label}: ${report.size} bytes; ${report.error ?? (d ? `${d.format}; ${d.entries} entries; ${d.continuations} continuation lines (${d.leading} leading); ${d.usedFallback ? `timezone fallback ${appliedTimezone || 'UTC (assumed)'}` : 'explicit/epoch or empty'}; ${d.durationMs.toFixed(1)} ms parse; ${report.cached ? 'cached' : 'parsed'}` : 'empty')}`;
+      return `${source.label}: ${report.size} bytes; ${report.error ?? (d ? `${d.format}; ${d.entries} entries; ${d.continuations} continuation lines (${d.leading} leading); ${describeAppliedTime(source, d.usedFallback)}; ${d.durationMs.toFixed(1)} ms parse; ${report.cached ? 'cached' : 'parsed'}` : 'empty')}`;
     }).join('\n') + `\n${message.entries} entries; ${reverse.checked ? 'descending' : 'ascending'}; merge ${message.durationMs.toFixed(1)} ms`;
     updateDownload();
     if (mergedReady) requestFilter();
@@ -436,7 +529,7 @@ function receive(event: MessageEvent<WorkerResponse>): void {
     const filtered = filterText.value !== '';
     const summary = filtered ? `${total.toLocaleString()} of ${mergedTotal.toLocaleString()} lines · ${message.entries.toLocaleString()} of ${mergedEntries.toLocaleString()} entries` : `${total.toLocaleString()} lines · ${mergedEntries.toLocaleString()} entries`;
     const noMatches = filterInvert.checked ? 'No nonmatching lines' : 'No matching lines';
-    status.textContent = message.error ? 'Correct the filter to view and download results.' : !sources.some(source => source.included) ? 'No files selected.' : !mergedTotal ? 'Selected files are empty.' : !total ? `${noMatches} (${mergedTotal.toLocaleString()} lines searched).` : `${summary}${filtered && filterInvert.checked ? ' · inverted' : ''} · ${reverse.checked ? 'newest first' : 'oldest first'} · ${(mergeDuration + message.durationMs).toFixed(0)} ms${pending ? ' · parsing settings pending' : ''}`;
+    status.textContent = message.error ? 'Correct the filter to view and download results.' : !sources.some(source => source.included) ? 'No files selected.' : !mergedTotal ? 'Selected files are empty.' : !total ? `${noMatches} (${mergedTotal.toLocaleString()} lines searched).` : `${summary}${filtered && filterInvert.checked ? ' · inverted' : ''} · ${reverse.checked ? 'newest first' : 'oldest first'} · ${(mergeDuration + message.durationMs).toFixed(0)} ms${pending ? ' · merge settings pending' : ''}`;
     const empty = element('empty');
     if (!total && mergedTotal && filtered) {
       empty.textContent = message.error ? 'Correct the filter to show results.' : `${noMatches}. Change or clear the filter.`;
@@ -501,6 +594,16 @@ function initialize(): void {
   repository.href = __REPOSITORY__;
   repository.textContent = `loglinealign v${__VERSION__} · GitHub`;
   worker = createWorker();
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => selectTab(tab));
+    tab.addEventListener('keydown', navigateTabs);
+  }
+  element('collapse-controls').addEventListener('click', () => setControlsCollapsed(!element('tool-content').hidden));
+  document.querySelector<HTMLAnchorElement>('a[href="#timezone"]')!.addEventListener('click', event => {
+    event.preventDefault();
+    selectTab(element<HTMLButtonElement>('settings-tab'));
+    timezone.focus();
+  });
   element('dismiss-warning').addEventListener('click', () => { warnings.hidden = true; viewport.focus({ preventScroll: true }); });
   filterText.addEventListener('input', changeFilter);
   filterInvert.addEventListener('change', changeFilter);
@@ -512,35 +615,19 @@ function initialize(): void {
   }
   element('filter-clear').addEventListener('click', () => { filterText.value = ''; changeFilter(); filterText.focus(); });
   picker.addEventListener('change', () => { if (picker.files?.length) addFiles(picker.files); picker.value = ''; });
-  const drop = element('drop-zone');
-  document.addEventListener('dragover', event => event.preventDefault());
-  document.addEventListener('drop', event => event.preventDefault());
-  drop.addEventListener('dragover', event => { event.preventDefault(); drop.classList.add('dragging'); });
-  drop.addEventListener('dragleave', () => drop.classList.remove('dragging'));
-  drop.addEventListener('drop', event => { event.preventDefault(); drop.classList.remove('dragging'); if (event.dataTransfer?.files.length) addFiles(event.dataTransfer.files); });
+  initializeFileDrop(element('drop-overlay'), receiveDroppedFiles);
   timezone.addEventListener('input', markPending);
-  element('remerge').addEventListener('click', () => startMerge());
+  for (const id of ['remerge', 'remerge-sources']) {
+    element(id).addEventListener('click', () => startMerge());
+  }
   reverse.addEventListener('change', () => startMerge(false));
   noFilename.addEventListener('change', scheduleView);
   color.addEventListener('change', () => {
     for (const row of rows.children) (row as HTMLElement).style.color = color.checked ? sourceColor(Number((row as HTMLElement).dataset.order)).css : '';
   });
   verbose.addEventListener('change', () => { element('diagnostic-panel').hidden = !verbose.checked; });
-  element('expand').addEventListener('click', () => {
-    const expanded = element('workspace').classList.toggle('expanded');
-    element('expand').setAttribute('aria-expanded', String(expanded));
-    element('expand').setAttribute('aria-label', expanded ? 'Restore sources and settings' : 'Expand results to full page width');
-    element('expand').title = expanded ? 'Restore sources and settings' : 'Expand results';
-    scheduleView();
-  });
   element('expand-vertical').addEventListener('click', () => {
-    const expanded = document.body.classList.toggle('expanded-vertical');
-    const button = element<HTMLButtonElement>('expand-vertical');
-    button.setAttribute('aria-expanded', String(expanded));
-    button.setAttribute('aria-label', expanded ? 'Restore normal results height' : 'Expand results to full window height');
-    button.title = expanded ? 'Restore normal results height' : 'Expand results vertically';
-    element('result').scrollIntoView({ block: 'start' });
-    scheduleView();
+    setVerticalExpanded(!document.body.classList.contains('expanded-vertical'));
   });
   viewport.addEventListener('scroll', scheduleView, { passive: true });
   new ResizeObserver(scheduleView).observe(viewport);

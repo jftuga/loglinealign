@@ -12,6 +12,8 @@ export interface WebSource extends Source {
   file: File;
   included: boolean;
   format: string;
+  timezone: string;
+  timeShift: string;
 }
 
 export type WorkerRequest =
