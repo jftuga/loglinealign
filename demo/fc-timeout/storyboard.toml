@@ -1,0 +1,137 @@
+# Single source of truth for the explainer's timing, narration, and featured log lines.
+# Segments play back to back; each segment's start is the sum of the durations before it.
+# Cue and beat times are seconds from the start of their segment. Beats drive the scene's
+# animation, so moving a cue and its matching beat together keeps picture and voice in sync.
+# Narration may use placeholders filled from the generated logs: {app_alert_hhmm} (Mumbai
+# local HH:MM when the app pages on-call) and {munich_hhmm} (Munich local HH:MM of the
+# first link drop).
+
+[video]
+width = 1920
+height = 1080
+fps = 30
+max_words_per_second = 2.6
+
+[[segments]]
+id = "title"
+duration = 6.0
+beats = { title = 0.3, subtitle = 1.6, files = 2.4 }
+cues = [
+  { at = 0.6, end = 5.6, text = "One outage, three teams, three log files, and nobody can see the cause." },
+]
+
+[[segments]]
+id = "setup"
+duration = 12.0
+beats = { mumbai = 0.4, munich = 3.0, os = 5.9, teams = 8.8 }
+cues = [
+  { at = 0.4, end = 5.6, text = "The orders API runs in Mumbai. Its SQL Server database runs in Munich," },
+  { at = 5.9, end = 11.5, text = "on a Linux host with fibre channel storage. Each layer has its own team." },
+]
+
+[[segments]]
+id = "escalation"
+duration = 18.0
+beats = { app = 0.4, db = 6.2, db_found = 9.0, os = 12.4 }
+cues = [
+  { at = 0.4, end = 5.8, text = "At {app_alert_hhmm} the app team is paged for timeouts. They blame the database." },
+  { at = 6.2, end = 12.0, text = "The database team finds nothing at {app_alert_hhmm}, only slow I/O warnings at {munich_hhmm}." },
+  { at = 12.4, end = 17.6, text = "The OS team sees fibre channel errors at {munich_hhmm}. Three teams, three stories." },
+]
+
+[[segments]]
+id = "timeline"
+duration = 26.0
+beats = { sweep = 0.3, sweep_end = 4.5, gap = 5.8, snippet = 8.2, command = 11.9, zones = 15.6, shift = 17.6, shift_end = 20.0, zoom_end = 22.0, columns = 21.9 }
+cues = [
+  { at = 0.3, end = 5.3, text = "Merge them as written, and loglinealign must assume everything is UTC." },
+  { at = 5.8, end = 11.4, text = "Munich lands hours before Mumbai. The errors are three and a half hours apart." },
+  { at = 11.9, end = 15.3, text = "None of these logs record an offset." },
+  { at = 15.6, end = 21.4, text = "So give each file its zone: plus five thirty for Mumbai, plus two for Munich." },
+  { at = 21.9, end = 25.6, text = "Now the errors line up, four times." },
+]
+
+[[segments]]
+id = "closeup"
+duration = 21.0
+beats = { fc_down = 2.8, app_errors = 5.8, os_timeout = 10.8, db_report = 16.4, recovery = 19.0 }
+cues = [
+  { at = 0.4, end = 5.4, text = "Zoom in on the first incident. The fibre channel link drops first." },
+  { at = 5.8, end = 10.4, text = "Seconds later, the application starts failing requests and pages on-call." },
+  { at = 10.8, end = 16.0, text = "Thirty seconds in, the kernel aborts the stalled I/O and fails the path." },
+  { at = 16.4, end = 20.4, text = "Only then does SQL Server report slow I/O." },
+]
+
+[[segments]]
+id = "pattern"
+duration = 8.0
+beats = { rows = 0.6 }
+cues = [
+  { at = 0.4, end = 7.4, text = "All four incidents follow the same sequence, on the same HBA port." },
+]
+
+[[segments]]
+id = "close"
+duration = 11.0
+beats = { reported = 0.4, caused = 3.4, takeaway = 6.8 }
+cues = [
+  { at = 0.4, end = 6.4, text = "The teams reported it app, then database, then OS. The cause ran the other way." },
+  { at = 6.8, end = 10.4, text = "Align the clocks first. Then correlate." },
+]
+
+# Substrings that classify each log entry's first line for the timeline lanes.
+[severity.app]
+error = [" ERROR "]
+warn = [" WARN "]
+
+[severity.db]
+error = ["taking longer than 15 seconds"]
+warn = ["Error: 18456", "Login failed"]
+
+[severity.os]
+error = ["LOOP DOWN", "Abort command", "DID_TIME_OUT", "I/O error", "Failing path", "checker failed", "remaining active paths: 1"]
+warn = ["LOOP UP", "reinstated", "remaining active paths: 2", "Async-logout"]
+
+# Each team's own view of the first incident: the first matching entry per pattern, with a count.
+# The window is in seconds relative to the incident's link drop.
+[escalation]
+incident = 1
+window = [-1.0, 75.0]
+app = ["The query has timed out", "-> 500 (5", "waiting=", "SLO breach"]
+db = ["orders_log.ldf", "orders.mdf"]
+os = ["LOOP DOWN", "DID_TIME_OUT", "Failing path", "LOOP UP"]
+
+# The aligned close-up and the four-incident table, grouped in causal order.
+[closeup]
+incident = 1
+window = [-1.0, 75.0]
+
+[[closeup.groups]]
+id = "fc_down"
+label = "FC link down"
+note = "FC link drops on HBA port host8"
+patterns = ["LOOP DOWN"]
+
+[[closeup.groups]]
+id = "app_errors"
+label = "First app error"
+note = "App queries time out; on-call is paged"
+patterns = ["The query has timed out", "-> 500", "SLO breach"]
+
+[[closeup.groups]]
+id = "os_timeout"
+label = "Kernel fails path"
+note = "Kernel aborts stalled I/O and fails the path"
+patterns = ["DID_TIME_OUT", "Failing path", "remaining active paths: 1"]
+
+[[closeup.groups]]
+id = "db_report"
+label = "DB reports slow I/O"
+note = "SQL Server reports slow I/O, after the fact"
+patterns = ["taking longer than 15 seconds"]
+
+[[closeup.groups]]
+id = "recovery"
+label = "FC link up"
+note = "Link back up; path reinstated"
+patterns = ["LOOP UP", "remaining active paths: 2"]

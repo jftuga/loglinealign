@@ -1,0 +1,97 @@
+2026-09-15T10:00:00.411000 mucsql01 systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-15T10:00:00.442000 mucsql01 systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-15T10:00:00.443000 mucsql01 systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-15T10:00:01.080000 mucsql01 CROND[51022]: (root) CMD (/usr/local/sbin/mssql-healthcheck.sh)
+2026-09-15T10:00:03.207114 mucsql01 chronyd[1033]: Selected source 10.40.0.11 (ntp1.muc.example.net)
+2026-09-15T10:05:01.080000 mucsql01 CROND[51159]: (root) CMD (/usr/local/sbin/mssql-healthcheck.sh)
+2026-09-15T10:07:12.418306 mucsql01 kernel: qla2xxx [0000:3b:00.1]-500b:8: LOOP DOWN detected (2 7 0 0).
+2026-09-15T10:07:12.418718 mucsql01 kernel: qla2xxx [0000:3b:00.1]-2870:8: Async-logout - hdl=5 loop-id=1 portid=0a1c00 50:06:01:6c:47:e0:1a:2b.
+2026-09-15T10:07:42.422306 mucsql01 kernel: qla2xxx [0000:3b:00.1]-801c:8: Abort command issued nexus=8:1:3 --  1 2003.
+2026-09-15T10:07:42.422486 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#986 FAILED Result: hostbyte=DID_TIME_OUT driverbyte=DRIVER_OK cmd_age=30s
+2026-09-15T10:07:42.422666 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#986 CDB: Write(16) 8a 00 00 00 00 00 12 69 56 98 00 00 00 40 00 00
+2026-09-15T10:07:42.422846 mucsql01 kernel: I/O error, dev sdm, sector 308893336 op 0x1:(WRITE) flags 0x8800 phys_seg 8 prio class 0
+2026-09-15T10:07:42.423026 mucsql01 kernel: qla2xxx [0000:3b:00.1]-801c:8: Abort command issued nexus=8:1:3 --  1 2003.
+2026-09-15T10:07:42.423206 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#352 FAILED Result: hostbyte=DID_TIME_OUT driverbyte=DRIVER_OK cmd_age=30s
+2026-09-15T10:07:42.423386 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#352 CDB: Write(16) 8a 00 00 00 00 00 12 23 d5 50 00 00 00 40 00 00
+2026-09-15T10:07:42.423566 mucsql01 kernel: I/O error, dev sdm, sector 304338256 op 0x1:(WRITE) flags 0x8800 phys_seg 8 prio class 0
+2026-09-15T10:07:42.423746 mucsql01 kernel: device-mapper: multipath: 253:4: Failing path 8:192.
+2026-09-15T10:07:42.444746 mucsql01 multipathd[1187]: checker failed path 8:192 in map mssql_data
+2026-09-15T10:07:42.445046 mucsql01 multipathd[1187]: mssql_data: remaining active paths: 1
+2026-09-15T10:08:05.018306 mucsql01 kernel: qla2xxx [0000:3b:00.1]-500a:8: LOOP UP detected (16 Gbps).
+2026-09-15T10:08:07.214438 mucsql01 multipathd[1187]: 8:192: reinstated
+2026-09-15T10:08:07.214788 mucsql01 multipathd[1187]: mssql_data: remaining active paths: 2
+2026-09-15T10:10:00.411000 mucsql01 systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-15T10:10:00.442000 mucsql01 systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-15T10:10:00.443000 mucsql01 systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-15T10:10:01.080000 mucsql01 CROND[51217]: (root) CMD (/usr/local/sbin/mssql-healthcheck.sh)
+2026-09-15T10:13:08.500000 mucsql01 sshd[48114]: Accepted publickey for opsadmin from 10.40.12.7 port 52114 ssh2: ED25519 SHA256:q3VbXk0rTq9mZ1yLw7pD2nHc8sFa5uJe4iGo6tRy0Ks
+2026-09-15T10:13:08.512000 mucsql01 systemd-logind[1011]: New session 3127 of user opsadmin.
+2026-09-15T10:15:01.080000 mucsql01 CROND[51274]: (root) CMD (/usr/local/sbin/mssql-healthcheck.sh)
+2026-09-15T10:19:41.733019 mucsql01 kernel: qla2xxx [0000:3b:00.1]-500b:8: LOOP DOWN detected (2 7 0 0).
+2026-09-15T10:19:41.733431 mucsql01 kernel: qla2xxx [0000:3b:00.1]-2870:8: Async-logout - hdl=5 loop-id=1 portid=0a1c00 50:06:01:6c:47:e0:1a:2b.
+2026-09-15T10:20:00.411000 mucsql01 systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-15T10:20:00.442000 mucsql01 systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-15T10:20:00.443000 mucsql01 systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-15T10:20:01.080000 mucsql01 CROND[51349]: (root) CMD (/usr/local/sbin/mssql-healthcheck.sh)
+2026-09-15T10:20:11.736392 mucsql01 kernel: qla2xxx [0000:3b:00.1]-801c:8: Abort command issued nexus=8:1:3 --  1 2003.
+2026-09-15T10:20:11.736572 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#354 FAILED Result: hostbyte=DID_TIME_OUT driverbyte=DRIVER_OK cmd_age=30s
+2026-09-15T10:20:11.736752 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#354 CDB: Write(16) 8a 00 00 00 00 00 15 06 84 48 00 00 00 40 00 00
+2026-09-15T10:20:11.736932 mucsql01 kernel: I/O error, dev sdm, sector 352748616 op 0x1:(WRITE) flags 0x8800 phys_seg 8 prio class 0
+2026-09-15T10:20:11.737112 mucsql01 kernel: qla2xxx [0000:3b:00.1]-801c:8: Abort command issued nexus=8:1:3 --  1 2003.
+2026-09-15T10:20:11.737292 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#650 FAILED Result: hostbyte=DID_TIME_OUT driverbyte=DRIVER_OK cmd_age=30s
+2026-09-15T10:20:11.737472 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#650 CDB: Write(16) 8a 00 00 00 00 00 0b 7e 0d 60 00 00 00 40 00 00
+2026-09-15T10:20:11.737652 mucsql01 kernel: I/O error, dev sdm, sector 192810336 op 0x1:(WRITE) flags 0x8800 phys_seg 8 prio class 0
+2026-09-15T10:20:11.737832 mucsql01 kernel: device-mapper: multipath: 253:4: Failing path 8:192.
+2026-09-15T10:20:11.758832 mucsql01 multipathd[1187]: checker failed path 8:192 in map mssql_data
+2026-09-15T10:20:11.759132 mucsql01 multipathd[1187]: mssql_data: remaining active paths: 1
+2026-09-15T10:20:22.933019 mucsql01 kernel: qla2xxx [0000:3b:00.1]-500a:8: LOOP UP detected (16 Gbps).
+2026-09-15T10:20:25.592815 mucsql01 multipathd[1187]: 8:192: reinstated
+2026-09-15T10:20:25.593165 mucsql01 multipathd[1187]: mssql_data: remaining active paths: 2
+2026-09-15T10:22:49.500000 mucsql01 systemd-logind[1011]: Session 3127 logged out. Waiting for processes to exit.
+2026-09-15T10:22:49.504000 mucsql01 systemd-logind[1011]: Removed session 3127.
+2026-09-15T10:25:01.080000 mucsql01 CROND[51427]: (root) CMD (/usr/local/sbin/mssql-healthcheck.sh)
+2026-09-15T10:30:00.411000 mucsql01 systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-15T10:30:00.442000 mucsql01 systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-15T10:30:00.443000 mucsql01 systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-15T10:30:01.080000 mucsql01 CROND[51571]: (root) CMD (/usr/local/sbin/mssql-healthcheck.sh)
+2026-09-15T10:31:05.206774 mucsql01 kernel: qla2xxx [0000:3b:00.1]-500b:8: LOOP DOWN detected (2 7 0 0).
+2026-09-15T10:31:05.207186 mucsql01 kernel: qla2xxx [0000:3b:00.1]-2870:8: Async-logout - hdl=5 loop-id=1 portid=0a1c00 50:06:01:6c:47:e0:1a:2b.
+2026-09-15T10:31:35.210346 mucsql01 kernel: qla2xxx [0000:3b:00.1]-801c:8: Abort command issued nexus=8:1:3 --  1 2003.
+2026-09-15T10:31:35.210526 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#496 FAILED Result: hostbyte=DID_TIME_OUT driverbyte=DRIVER_OK cmd_age=30s
+2026-09-15T10:31:35.210706 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#496 CDB: Write(16) 8a 00 00 00 00 00 12 a8 49 08 00 00 00 40 00 00
+2026-09-15T10:31:35.210886 mucsql01 kernel: I/O error, dev sdm, sector 313018632 op 0x1:(WRITE) flags 0x8800 phys_seg 8 prio class 0
+2026-09-15T10:31:35.211066 mucsql01 kernel: qla2xxx [0000:3b:00.1]-801c:8: Abort command issued nexus=8:1:3 --  1 2003.
+2026-09-15T10:31:35.211246 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#829 FAILED Result: hostbyte=DID_TIME_OUT driverbyte=DRIVER_OK cmd_age=30s
+2026-09-15T10:31:35.211426 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#829 CDB: Write(16) 8a 00 00 00 00 00 16 38 b1 f0 00 00 00 40 00 00
+2026-09-15T10:31:35.211606 mucsql01 kernel: I/O error, dev sdm, sector 372814320 op 0x1:(WRITE) flags 0x8800 phys_seg 8 prio class 0
+2026-09-15T10:31:35.211786 mucsql01 kernel: device-mapper: multipath: 253:4: Failing path 8:192.
+2026-09-15T10:31:35.232786 mucsql01 multipathd[1187]: checker failed path 8:192 in map mssql_data
+2026-09-15T10:31:35.233086 mucsql01 multipathd[1187]: mssql_data: remaining active paths: 1
+2026-09-15T10:32:13.106774 mucsql01 kernel: qla2xxx [0000:3b:00.1]-500a:8: LOOP UP detected (16 Gbps).
+2026-09-15T10:32:15.964954 mucsql01 multipathd[1187]: 8:192: reinstated
+2026-09-15T10:32:15.965304 mucsql01 multipathd[1187]: mssql_data: remaining active paths: 2
+2026-09-15T10:34:47.100000 mucsql01 sshd[48388]: Accepted publickey for opsadmin from 10.40.12.7 port 52388 ssh2: ED25519 SHA256:q3VbXk0rTq9mZ1yLw7pD2nHc8sFa5uJe4iGo6tRy0Ks
+2026-09-15T10:34:47.112000 mucsql01 systemd-logind[1011]: New session 3131 of user opsadmin.
+2026-09-15T10:35:01.080000 mucsql01 CROND[51721]: (root) CMD (/usr/local/sbin/mssql-healthcheck.sh)
+2026-09-15T10:38:50.951432 mucsql01 kernel: qla2xxx [0000:3b:00.1]-500b:8: LOOP DOWN detected (2 7 0 0).
+2026-09-15T10:38:50.951844 mucsql01 kernel: qla2xxx [0000:3b:00.1]-2870:8: Async-logout - hdl=5 loop-id=1 portid=0a1c00 50:06:01:6c:47:e0:1a:2b.
+2026-09-15T10:39:20.954130 mucsql01 kernel: qla2xxx [0000:3b:00.1]-801c:8: Abort command issued nexus=8:1:3 --  1 2003.
+2026-09-15T10:39:20.954310 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#460 FAILED Result: hostbyte=DID_TIME_OUT driverbyte=DRIVER_OK cmd_age=30s
+2026-09-15T10:39:20.954490 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#460 CDB: Write(16) 8a 00 00 00 00 00 0e ac 2c 78 00 00 00 40 00 00
+2026-09-15T10:39:20.954670 mucsql01 kernel: I/O error, dev sdm, sector 246164600 op 0x1:(WRITE) flags 0x8800 phys_seg 8 prio class 0
+2026-09-15T10:39:20.954850 mucsql01 kernel: qla2xxx [0000:3b:00.1]-801c:8: Abort command issued nexus=8:1:3 --  1 2003.
+2026-09-15T10:39:20.955030 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#483 FAILED Result: hostbyte=DID_TIME_OUT driverbyte=DRIVER_OK cmd_age=30s
+2026-09-15T10:39:20.955210 mucsql01 kernel: sd 8:0:1:3: [sdm] tag#483 CDB: Write(16) 8a 00 00 00 00 00 1c 30 41 10 00 00 00 40 00 00
+2026-09-15T10:39:20.955390 mucsql01 kernel: I/O error, dev sdm, sector 472924432 op 0x1:(WRITE) flags 0x8800 phys_seg 8 prio class 0
+2026-09-15T10:39:20.955570 mucsql01 kernel: device-mapper: multipath: 253:4: Failing path 8:192.
+2026-09-15T10:39:20.976570 mucsql01 multipathd[1187]: checker failed path 8:192 in map mssql_data
+2026-09-15T10:39:20.976870 mucsql01 multipathd[1187]: mssql_data: remaining active paths: 1
+2026-09-15T10:39:29.351432 mucsql01 kernel: qla2xxx [0000:3b:00.1]-500a:8: LOOP UP detected (16 Gbps).
+2026-09-15T10:39:31.728907 mucsql01 multipathd[1187]: 8:192: reinstated
+2026-09-15T10:39:31.729257 mucsql01 multipathd[1187]: mssql_data: remaining active paths: 2
+2026-09-15T10:40:00.411000 mucsql01 systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-15T10:40:00.442000 mucsql01 systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-15T10:40:00.443000 mucsql01 systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-15T10:40:01.080000 mucsql01 CROND[51791]: (root) CMD (/usr/local/sbin/mssql-healthcheck.sh)
+2026-09-15T10:40:59.100000 mucsql01 systemd-logind[1011]: Session 3131 logged out. Waiting for processes to exit.
+2026-09-15T10:40:59.104000 mucsql01 systemd-logind[1011]: Removed session 3131.
