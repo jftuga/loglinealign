@@ -103,10 +103,18 @@ code{font-family:ui-monospace,monospace;color:#c9dccd;overflow-wrap:anywhere}
 #empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#bfccd6;font:15px system-ui;text-align:center;padding:20px;pointer-events:none}
 #empty span{color:#7d8f9e;font-size:12px;margin-top:9px}
 .download-bar{display:flex;align-items:center;gap:18px}
-.download-bar>div{flex:1;max-width:420px}
+.download-bar>div{flex:1;min-width:0;max-width:420px;overflow-wrap:anywhere}
 .download-bar label{display:block;font-size:12px;margin-bottom:7px}
 .download-bar .hint{margin-bottom:0}
 .download-bar button{margin-left:auto;white-space:nowrap}
+#download-preview.bad{color:#ffa7a7}
+#download-name[aria-invalid=true]{border-color:#ffa7a7}
+.filename-reference{margin-top:12px;font-size:12px;line-height:1.5}
+.filename-reference summary{cursor:pointer;color:var(--accent)}
+.filename-reference p{margin-top:10px;color:var(--muted)}
+.filename-reference table{width:100%;border-collapse:collapse;margin-top:10px;text-align:left}
+.filename-reference th,.filename-reference td{padding:6px 8px 6px 0;border-bottom:1px solid var(--border);vertical-align:top}
+.filename-reference th:first-child{width:75px}
 #diagnostic-panel{border-top:1px solid var(--border);padding:16px 22px;font-size:12px}
 #diagnostic-panel summary{cursor:pointer}
 #diagnostics{font:11px/1.8 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted)}

@@ -38,7 +38,8 @@ node dist/loglinealign.js app.log database.log
 node dist/loglinealign.js --timezone UTC -o merged.log app.log database.log
 node dist/loglinealign.js -n -N app.log database.log
 node dist/loglinealign.js -r -v app.log database.log
-node dist/loglinealign.js --format legacy.log 'DD/MM/YYYY HH:mm:ss' --timezone +02:00 legacy.log service.log
+node dist/loglinealign.js --format legacy.log '%d/%m/%Y %H:%M:%S' --timezone +02:00 legacy.log service.log
+node dist/loglinealign.js -o 'merge--%Y%m%d.%H%M%S.log' app.log database.log
 node dist/loglinealign.js --format epoch.log epoch-ns epoch.log
 node dist/loglinealign.js --file-timezone east.log +02:00 --file-timezone west.log -05:00 east.log west.log
 node dist/loglinealign.js --time-shift slow.log +00:30 slow.log reference.log
@@ -49,7 +50,7 @@ Options precede the final positional inputs. `--` ends option parsing; shell wil
 
 | Option | Behavior |
 | --- | --- |
-| `-o PATH` | Write output atomically to PATH; default is STDOUT |
+| `-o PATH` | Write output atomically to PATH, expanding date specifiers throughout the path; default is STDOUT |
 | `--timezone UTC\|±HH:MM` | Fallback timezone for timestamps without an offset |
 | `--format FILE FORMAT` | Override one input's format; repeat for different inputs |
 | `--file-timezone FILE TZ` | Per-file fallback timezone (`UTC` or `±HH:MM`); overrides the global fallback |
@@ -71,7 +72,7 @@ Errors and verbose diagnostics go to STDERR. Verbose output includes source name
 `--version` prints exactly these two uncolored lines and a final newline:
 
 ```text
-loglinealign v0.4.0
+loglinealign v0.5.0
 https://github.com/jftuga/loglinealign
 ```
 
@@ -114,32 +115,42 @@ Automatic detection prefers a complete date and time over date-only mentions els
 
 Each file has one calendar family, date/time separator, and fractional separator. Fraction presence and precision may vary; explicit offsets may vary or be absent within the family. The selected timestamp is fully validated; invalid or incomplete date-and-time candidates are never ignored in favor of another timestamp. Two timestamps with clock fields remain ambiguous, even if one has more fractional digits or an offset. Calendar dates use the proleptic Gregorian calendar, years 0001–9999. Invalid days, clock fields, offsets, leap seconds, and fractions beyond nanosecond precision are rejected. Conversion is used only for sorting; original timestamp text is retained.
 
-Kernel messages that include a full `setting system clock to ...` timestamp in addition to the record timestamp still require an override. For a record timestamp such as `2026-07-20T12:33:25.583969+0300`, use `YYYY-MM-DD[T]HH:mm:ss.SSSSSSZZ` to distinguish it from an embedded timestamp without that fractional field and compact offset. If two timestamps match the same override, add distinguishing literals.
+Kernel messages that include a full `setting system clock to ...` timestamp in addition to the record timestamp still require an override. For a record timestamp such as `2026-07-20T12:33:25.583969+0300`, use `%Y-%m-%dT%H:%M:%S.%6N%z` to distinguish it from an embedded timestamp without that fractional field and compact offset. If two timestamps match the same override, add distinguishing literals.
 
-In both the CLI and browser, automatic-detection ambiguity errors include **Possible candidates**: distinct format overrides inferred from valid supported timestamps on the failing line, in their order of appearance. Suggestions preserve separators, exact fractional precision, and offset style (`Z` for `Z`/colon offsets; `ZZ` for compact offsets). For example:
+In both the CLI and browser, automatic-detection ambiguity errors include **Possible candidates**: distinct format overrides inferred from valid supported timestamps on the failing line, in their order of appearance. Suggestions preserve separators, exact fractional precision, and offset style (`%:z` for `Z`/colon offsets; `%z` for compact offsets). For example:
 
 ```text
-Multiple timestamp candidates with clock fields on one line; use a format override with distinguishing literals. Possible candidates: "YYYY-MM-DD[T]HH:mm:ss.SSSSSSZZ", "YYYY-MM-DD HH:mm:ssZ".
+Multiple timestamp candidates with clock fields on one line; use a format override with distinguishing literals. Possible candidates: "%Y-%m-%dT%H:%M:%S.%6N%z", "%Y-%m-%d %H:%M:%S%:z".
 ```
 
 Copy a candidate into **Format override (optional)** without the surrounding quotation marks, or pass it as the quoted FORMAT argument to CLI `--format`. Suggestions describe that line, not a guaranteed format for the entire file, and are never applied automatically. Identical formats appear once; add distinguishing literal text if a suggested format still matches multiple timestamps. Malformed, invalid, or unsupported candidates remain errors and are omitted from the suggestions. If none can be validated, the error says `Possible candidates: none (no valid supported timestamp candidates)`. This does not expand the supported automatic timestamp families or infer numeric day/month order.
 
-Numeric record timestamps such as `02/10/2026 14:35:07` always need an override, even if sample values suggest a particular date order. This restriction does not apply to date-only mentions alongside a complete supported timestamp. Overrides contain these tokens:
+Numeric record timestamps such as `02/10/2026 14:35:07` always need an override, even if sample values suggest a particular date order. This restriction does not apply to date-only mentions alongside a complete supported timestamp. Overrides and filename templates share these case-sensitive `date`-style specifiers, with different supported subsets:
 
-| Token | Meaning |
-| --- | --- |
-| `YYYY`, `MM`, `DD` | Complete calendar date |
-| `HH`, `mm`, `ss` | Complete 24-hour clock |
-| `S` through `SSSSSSSSS` | Required fractional digits, exactly the specified width |
-| `Z` | `Z` or an offset with a colon |
-| `ZZ` | Signed offset without a colon |
-| `[literal]` | Literal text, such as `[T]` |
+| Specifier | Meaning | Override | Filename | Source |
+| --- | --- | --- | --- | --- |
+| `%Y` | Four-digit year | Required, exactly four digits | Zero-padded to four digits | POSIX |
+| `%m` | Month, 01–12 | Required, exactly two digits | Yes | POSIX |
+| `%d` | Day, 01–31 | Required, exactly two digits | Yes | POSIX |
+| `%H` | Hour, 00–23 | Required, exactly two digits | Yes | POSIX |
+| `%M` | Minute, 00–59 | Required, exactly two digits | Yes | POSIX |
+| `%S` | Second, 00–59 | Required, exactly two digits | Yes | POSIX |
+| `%1N`–`%9N` | Exactly that many fractional digits | Yes | `%1N`–`%3N` only | GNU extension |
+| `%N` | Same as `%9N` | Yes | No | GNU extension |
+| `%z` | Offset `±HHMM` | Yes | Yes | POSIX |
+| `%:z` | Offset `±HH:MM` | Also accepts `Z` (a deviation from `date`) | No | GNU extension |
+| `%s` | Unix epoch seconds | No; use `epoch-s` | Yes | GNU/BSD |
+| `%%` | Literal `%` | Yes | Yes | POSIX |
+| `%F` | `%Y-%m-%d` | Yes | Yes | POSIX |
+| `%T` | `%H:%M:%S` | Yes | No | POSIX |
 
-Punctuation is literal. Include the decimal separator before an `S` field. Every date and time field is required once; arbitrary literal letters must be bracketed. Overrides match a substring, so text outside the timestamp is retained. A distinguishing literal can select a single timestamp when a line contains more than one. A calendar-looking line that fails its override is an error.
+Letters, digits, brackets, spaces, and punctuation are literal. Include a literal decimal separator before a fractional field, such as `.%3N` or `,%6N`. Every date and time field is required exactly once; fraction and zone fields may each appear at most once. Shorthands expand before repeated-field checks, so `%F %Y` repeats the year. `[%F %T]` matches a bracketed timestamp. Unsupported specifiers, including `%0N`, `%10N`, a trailing `%`, and those outside the selected feature's subset, are errors listing the valid specifiers. Old-style overrides are no longer accepted.
+
+Overrides match a substring, so text outside the timestamp is retained. A distinguishing literal can select a single timestamp when a line contains more than one. A calendar-looking line that fails its override is an error.
 
 Leading and trailing spaces in a nonblank override are literal in both interfaces and can distinguish timestamps. The browser treats an entirely blank or whitespace-only override as automatic detection; it preserves spaces in an otherwise nonblank override.
 
-An override may include a trailing literal separator before the message, such as `YYYY-MM-DD[T]HH:mm:ssZ[ | ]`. Text after that separator is message content. Overrides ending in a timestamp field still reject attached malformed fractions, offsets, and suffixes.
+An override may include a trailing literal separator before the message, such as `%Y-%m-%dT%H:%M:%S%:z | `. Text after that separator is message content. Overrides ending in a timestamp field still reject attached malformed fractions, offsets, and suffixes.
 
 Explicit `epoch-s`, `epoch-ms`, `epoch-us`, and `epoch-ns` overrides parse standalone signed numeric tokens using integer arithmetic. `epoch-s` also permits a decimal-point fraction through nine digits; the other units require integers. Negative fractional seconds are supported. Epochs are absolute instants, require no timezone, and are never auto-detected. With an epoch override, a line containing multiple standalone numbers is ambiguous and fails; digits inside identifiers are ignored.
 
@@ -147,7 +158,7 @@ Attached signs are part of the numeric-token boundary: `123-456`, `123+456`, and
 
 ### Recognition limits
 
-The parser recognizes year-first date starts (`YYYY-M` or `YYYY-M-D`, with hyphens or slashes) and day/month/year numeric dates anywhere outside an alphanumeric token. A following `T`, or spaces/tabs followed by digits and a colon, marks a date-and-time candidate, including malformed or incomplete clock fields. One such candidate takes precedence over date-only mentions before or after it; multiple such candidates require an override with distinguishing literals. A malformed second date-and-time candidate still causes an error. Different automatic families in one file are errors.
+The parser recognizes year-first date starts (a four-digit year followed by a one- or two-digit month and optional day, with hyphens or slashes) and day/month/year numeric dates anywhere outside an alphanumeric token. A following `T`, or spaces/tabs followed by digits and a colon, marks a date-and-time candidate, including malformed or incomplete clock fields. One such candidate takes precedence over date-only mentions before or after it; multiple such candidates require an override with distinguishing literals. A malformed second date-and-time candidate still causes an error. Different automatic families in one file are errors.
 
 If a line contains recognizable dates but no complete timestamp, it still fails instead of treating those dates as continuation text. At the start of a line, optionally after whitespace and `[`, recognizable clock-only and month/day-plus-clock records are also rejected as incomplete. Automatic detection never falls back to date-only, time-only, or epoch parsing.
 
@@ -184,11 +195,21 @@ The full-width interface has five tabs: **Sources** (selected initially), **Sear
 4. Toggle reverse order to reorder cached entries immediately. Check **No filename** to hide source prefixes in both preview and download; uncheck it to restore them. It is unchecked by default. Filename and color changes apply without reparsing. Processing details appear separately from the merged result and download. If format, timezone, or adjustment edits are pending, reversing continues to use the last applied settings and downloading remains disabled.
 5. Use **Hide controls** / **Show controls**, immediately left of the vertical-arrow button, to collapse or reopen the tab content globally. Tabs remain visible; Sources and Merge Settings retain their Remerge button beside the tab strip. Pending-setting status, errors, warnings, and enabled processing details remain outside the collapsed content. Collapsing gives the preview extra height, preserving its scroll position where the resized viewport permits. Switching tabs or clicking the selected tab preserves the global collapsed/expanded state; use Show controls to reveal the selected panel. Expanded Sources and help content use normal page scrolling. The vertical-arrow button shows only the logs and that button; press it again to restore the prior tab and collapse state.
 6. Use **Filter logs** in Search / Filter to keep matching physical lines, or select **Invert match** to keep nonmatching lines (`grep -v`). The filter applies to both preview and download, including while controls are hidden or the preview is vertically expanded. Matching text is highlighted in the preview. Matching options have descriptions on hover or keyboard focus; exit vertical expansion and show controls to edit them.
-7. Download the complete current result as plain text, including all retained lines when a filter is active. The download honors filenames and ordering, and never inserts highlights or ANSI colors. Leave the filename field blank for `merge--YYYYmmdd.HHMMSS.log`, generated from the browser's local clock at download time. Enter a custom name to retain it across downloads.
+7. Download the complete current result as plain text, including all retained lines when a filter is active. The download honors filenames and ordering, and never inserts highlights or ANSI colors. Leave the filename field blank for the template `merge--%Y%m%d.%H%M%S.log`, generated from the browser's local clock when Download is clicked. Enter a custom name or template to retain it across downloads. The filename preview updates while typing and when opening the Download tab. Each click captures both the template and timestamp, so edits made while the download is being prepared affect only subsequent downloads.
 
-No selection, all-empty selected files, selected-file errors, pending settings, an in-progress merge/filter, no matching lines, and an invalid or timed-out filter disable downloading. Excluded errors do not block valid selected sources. Superseded worker responses cannot replace the newest result or produce a download from an older filter.
+No selection, all-empty selected files, selected-file errors, pending settings, an in-progress merge/filter, no matching lines, an invalid filename template, and an invalid or timed-out filter disable downloading. Excluded errors do not block valid selected sources. Superseded worker responses cannot replace the newest result or produce a download from an older filter.
 
 Decoding, parsing, sorting, filtering, and download construction happen in an embedded worker. Each file caches decoded content and parsed entries for its format/timezone settings; selection changes reuse the cache. Filter edits reuse the merged entries without reparsing timestamps. Explicit-offset and epoch files avoid reparsing when only the fallback changes. Adjustment-only changes reuse parsing and redo ordering and filtering. Removing a source releases worker caches. The page renders a small window of output rows; downloads contain the entire current filtered result regardless of scroll position. For very large results, scrollbar height is bounded and maps proportionally to the full row range.
+
+### Filename templates
+
+The browser's Download filename and CLI `-o PATH` accept `%Y %m %d %H %M %S %F %1N %2N %3N %z %s %%`. Names without specifiers remain unchanged. Use `%%` for a literal percent sign: `report-100%%.log` saves as `report-100%.log`, while `100%.log` is invalid. Invalid templates fail during CLI argument parsing or display an inline browser error that disables Download.
+
+Expansion uses one instant in local time, captured at CLI start or browser Download click, independently of the log-parsing timezone. `%z` is the local offset at that instant, including daylight-saving changes; `%s` is Unix epoch seconds rounded down. `%1N` and `%2N` truncate milliseconds without rounding. Greater precision and bare `%N` are rejected because the clock provides only milliseconds. `%:z` and `%T` are rejected because they produce colons; use `%z` and `%H%M%S` instead.
+
+For example, `merge--%F_%H%M%S.%3N%z.log` can produce `merge--2026-10-04_150809.037-0400.log`. The CLI expands the whole path, including directories: `-o 'archive/%Y/%m/merge.log'`. Parent directories must already exist; they are never created. The resolved output path retains all input-overwrite protections.
+
+For UTC names, set `TZ=UTC`, for example `TZ=UTC node dist/loglinealign.js -o 'merge--%Y%m%d.%H%M%S.log' app.log`. Put templates in single quotes in POSIX shells, which leave `%` unchanged. In Windows `cmd` batch files, double every `%` to pass it to the program (and use double quotes around paths); a literal percent in the resulting filename therefore needs `%%%%` in the batch file.
 
 ### Browser text filter
 
@@ -219,14 +240,16 @@ No automated test framework is included. Use `make check` and `make` when changi
 
 1. `src/core/types.ts` — shared source, timestamp, entry, and diagnostic shapes.
 2. `src/core/timezone.ts` and `src/core/time_adjustment.ts` — fixed timezone validation, descriptions, and nonmutating time adjustments.
-3. `src/core/timestamp.ts` — automatic detection, explicit formats, epochs, and validation.
-4. `src/core/entries.ts` and `src/core/fallback.ts` — UTF-8 decoding, physical lines, block construction, and selection-wide fallback policy.
-5. `src/core/merge.ts` — deterministic ordering and reverse tie behavior.
-6. `src/core/format.ts` and `src/core/colors.ts` — labels, physical-line formatting, and stable colors.
-7. `src/cli/options.ts`, `src/cli/files.ts`, and `src/cli/main.ts` — arguments, filesystem protection, and orchestration.
-8. `src/web/filter.ts`, `src/web/protocol.ts`, and `src/web/worker.ts` — line matching, worker messages, cache management, viewport lookup, and downloads.
-9. `src/web/time_controls.ts`, `src/web/file_drop.ts`, `src/web/main.ts`, `src/web/index.html`, and `src/web/styles.css` — per-file time controls, application-wide file drops, browser state, and presentation.
-10. `package.json`, `tsconfig.json`, `scripts/build.mjs`, and `Makefile` — version metadata, strict checking, bundling, and artifact assembly.
+3. `src/core/date_format.ts` — shared specifier tokenizer, feature subsets, and shorthand expansion.
+4. `src/core/timestamp.ts` — automatic detection, explicit formats, epochs, and validation.
+5. `src/core/filename_template.ts` — local-time filename expansion and validation.
+6. `src/core/entries.ts` and `src/core/fallback.ts` — UTF-8 decoding, physical lines, block construction, and selection-wide fallback policy.
+7. `src/core/merge.ts` — deterministic ordering and reverse tie behavior.
+8. `src/core/format.ts` and `src/core/colors.ts` — labels, physical-line formatting, and stable colors.
+9. `src/cli/options.ts`, `src/cli/files.ts`, and `src/cli/main.ts` — arguments, filesystem protection, and orchestration.
+10. `src/web/filter.ts`, `src/web/protocol.ts`, and `src/web/worker.ts` — line matching, worker messages, cache management, viewport lookup, and downloads.
+11. `src/web/time_controls.ts`, `src/web/file_drop.ts`, `src/web/main.ts`, `src/web/index.html`, and `src/web/styles.css` — per-file time controls, application-wide file drops, browser state, and presentation.
+12. `package.json`, `tsconfig.json`, `scripts/build.mjs`, and `Makefile` — version metadata, strict checking, bundling, and artifact assembly.
 
 ## License
 

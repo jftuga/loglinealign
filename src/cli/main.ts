@@ -10,6 +10,7 @@ import { resolveFallback } from '../core/fallback';
 import { mergeEntries } from '../core/merge';
 import { applyTimeShift, formatTimeShift } from '../core/time_adjustment';
 import { describeTimezone } from '../core/timezone';
+import { expandFilenameTemplate } from '../core/filename_template';
 import { outputChunks, sourceLabels, sourceLabelWidth } from '../core/format';
 import type { ParsedSource, Source } from '../core/types';
 
@@ -17,9 +18,11 @@ declare const __VERSION__: string;
 declare const __REPOSITORY__: string;
 
 async function main(): Promise<void> {
+  const filenameDate = new Date();
   const options = parseOptions(process.argv.slice(2));
   if (options.action === 'version') { process.stdout.write(`loglinealign v${__VERSION__}\n${__REPOSITORY__}\n`); return; }
   if (options.action === 'help') { process.stdout.write(help); return; }
+  const output = options.output === undefined ? undefined : expandFilenameTemplate(options.output, filenameDate);
   const start = performance.now();
   const labels = sourceLabels(options.files.map(path => basename(path)));
   const inputs: { source: Source; parsed: ParsedSource; size: number; timezone?: string; timeShift: bigint }[] = [];
@@ -44,7 +47,7 @@ async function main(): Promise<void> {
   const merged = mergeEntries(inputs.map(input => applyTimeShift(input.parsed.entries, input.timeShift)), options.reverse);
   const color = options.color ?? (!options.output && Boolean(process.stdout.isTTY));
   const chunks = outputChunks(merged, { filename: options.filename, filenameWidth: sourceLabelWidth(labels), color });
-  if (options.output) await writeOutput(options.output, chunks, identities);
+  if (output !== undefined) await writeOutput(output, chunks, identities);
   else await pipeline(Readable.from(chunks), process.stdout);
   if (options.verbose) process.stderr.write(`Merged ${options.files.length} files, ${merged.length} entries; ${options.reverse ? 'descending' : 'ascending'}; ${color ? 'color' : 'plain'}; total ${(performance.now() - start).toFixed(1)} ms\n`);
 }

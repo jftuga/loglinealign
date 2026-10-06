@@ -2,6 +2,7 @@
 import { fallbackTimezone } from '../core/timezone';
 import { createTimestampParser } from '../core/timestamp';
 import { parseTimeShift } from '../core/time_adjustment';
+import { validateFilenameTemplate } from '../core/filename_template';
 
 export interface CliOptions {
   files: string[];
@@ -22,7 +23,8 @@ export const help = `Usage: node dist/loglinealign.js [options] FILE...
 Globally sort UTF-8 log entry blocks, preserving continuation lines.
 Options must precede inputs. Use -- for filenames beginning with a hyphen.
 
-  -o PATH                Atomically write output; never replace an input
+  -o PATH                Atomically write output; PATH may contain date specifiers
+                         Never replace an input; parent directory must exist
   --timezone UTC|±HH:MM   Fallback for timestamps without an explicit offset
   --format FILE FORMAT   Per-file format override (repeatable; exact input path)
   --file-timezone FILE TZ Per-file fallback, UTC or ±HH:MM (repeatable)
@@ -35,7 +37,7 @@ Options must precede inputs. Use -- for filenames beginning with a hyphen.
   --version              Version and repository URL
   --help                 This help
 
-Auto: YYYY-MM-DD[T]HH:mm:ss or YYYY-MM-DD HH:mm:ss or YYYY/MM/DD HH:mm:ss.
+Auto: %Y-%m-%dT%H:%M:%S or %Y-%m-%d %H:%M:%S or %Y/%m/%d %H:%M:%S.
 Optional . or , fractions (1–9 digits), and attached Z, ±HH:MM, or ±HHMM.
 One format per file; fractions may vary in precision or be absent.
 Auto consumes full fractions/offsets and prefers a complete timestamp over
@@ -44,13 +46,41 @@ Multiple date-and-time candidates still require a distinguishing override;
 the error lists possible formats from valid supported timestamps on that line.
 Suggestions may need distinguishing literals and must fit the entire file.
 Invalid/incomplete timestamps remain errors. Date-only records are unsupported.
-Override tokens: YYYY MM DD HH mm ss, 1–9 S characters, Z (Z or ±HH:MM),
-ZZ (±HHMM). Punctuation is literal; enclose literal letters in brackets.
+Override specifiers: %Y %m %d %H %M %S, %1N–%9N (%N = %9N),
+%:z (Z or ±HH:MM), %z (±HHMM), %F (%Y-%m-%d), %T (%H:%M:%S), %% (literal %).
+Letters, brackets, spaces, and punctuation are literal.
 Override fraction fields are required and match the specified digit count.
 Leading/trailing spaces are literal. Trailing literal separators may precede message text.
-Examples: 'DD/MM/YYYY HH:mm:ss' or 'YYYY-MM-DD[T]HH:mm:ss.SSSZ'.
+Examples: '%d/%m/%Y %H:%M:%S' or '%Y-%m-%dT%H:%M:%S.%3N%:z'.
 Explicit epochs: epoch-s (optional decimal seconds), epoch-ms, epoch-us, epoch-ns.
 Numeric month/day record timestamps require an override. Dates must be complete.
+
+Filename specifiers (case-sensitive):
+  Specifier  Meaning                                    Example
+  %Y         Four-digit year                            2026
+  %m         Month, zero-padded (01–12)                  10
+  %d         Day of month, zero-padded (01–31)           04
+  %H         Hour, 24-hour clock (00–23)                 15
+  %M         Minute, zero-padded (00–59)                 08
+  %S         Second, zero-padded (00–59)                 09
+  %F         Full date, same as %Y-%m-%d                 2026-10-04
+  %1N        Fraction: tenths of a second (1 digit)      0
+  %2N        Fraction: hundredths of a second (2 digits) 03
+  %3N        Fraction: milliseconds (3 digits)          037
+  %z         Local UTC offset, signed hours/minutes     -0400
+  %s         Whole seconds since the Unix epoch         1791140889
+  %%         Literal percent sign                       %
+Examples above use 2026-10-04 15:08:09.037 at UTC-04:00.
+%m is month; %M is minute. Fractional digits truncate, never round;
+write the decimal point yourself, such as %S.%3N for 09.037.
+%s counts seconds since 1970-01-01 00:00:00 UTC, rounded down.
+Expand the whole PATH at CLI start using local time, independently of --timezone.
+Use TZ=UTC for UTC names; directories must already exist.
+Example: -o 'merge--%F_%H%M%S.%3N%z.log'
+         produces merge--2026-10-04_150809.037-0400.log at the example time.
+Use 'report-100%%.log' to save as report-100%.log.
+%T and %:z are unsupported in filenames; use %H%M%S and %z to avoid colons.
+%N and fractions wider than %3N are unsupported; the clock has millisecond precision.
 
 If every nonempty input needs a fallback timezone and none is supplied,
 warn on STDERR and assume UTC. Empty files are ignored. Mixed selections
@@ -90,7 +120,7 @@ export function parseOptions(args: string[]): CliOptions {
       case '-o': case '--timezone': {
         const value = args[++index];
         if (!value) throw new Error(`${arg} requires a value.`);
-        if (arg === '-o') options.output = value;
+        if (arg === '-o') { validateFilenameTemplate(value); options.output = value; }
         else { fallbackTimezone(value); options.timezone = value; }
         break;
       }

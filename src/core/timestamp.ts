@@ -1,14 +1,15 @@
 /** Parse explicit timestamp grammars into integer nanoseconds. Recognition is deliberately strict and never delegates to Date.parse. */
 import type { Timestamp } from './types';
 import { missingTimezoneMessage, parseTimezone } from './timezone';
+import { tokenizeDateFormat } from './date_format';
 
 interface CalendarFields {
-  YYYY: string;
-  MM: string;
-  DD: string;
-  HH: string;
-  mm: string;
-  ss: string;
+  year: string;
+  month: string;
+  day: string;
+  hour: string;
+  minute: string;
+  second: string;
   fraction?: string;
   zone?: string;
 }
@@ -33,12 +34,12 @@ const clockAfterDate = /^[-/\d]*(?:T|[ \t]+\d+:)/;
 const incomplete = /^\s*\[?(?:\d{1,2}:\d{2}(?::\d{2})?|\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{2})(?!\d)/;
 
 function calendarKey(fields: CalendarFields, fallback: number | undefined): { key: bigint; usedFallback: boolean } {
-  const year = Number(fields.YYYY);
-  const month = Number(fields.MM);
-  const day = Number(fields.DD);
-  const hour = Number(fields.HH);
-  const minute = Number(fields.mm);
-  const second = Number(fields.ss);
+  const year = Number(fields.year);
+  const month = Number(fields.month);
+  const day = Number(fields.day);
+  const hour = Number(fields.hour);
+  const minute = Number(fields.minute);
+  const second = Number(fields.second);
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   if (year < 1 || year > 9999 || month < 1 || month > 12 || day < 1 || day > days[month - 1]!) {
@@ -66,19 +67,20 @@ function validateTail(tail: string): void {
 }
 
 function matchAutomatic(tail: string): RegExpExecArray {
-  if (!/^\d{4}[-/]/.test(tail)) throw new Error('Numeric date order requires a format override such as DD/MM/YYYY HH:mm:ss.');
+  // Automatic calendars must start with a four-digit year and a date separator.
+  if (!/^\d{4}[-/]/.test(tail)) throw new Error('Numeric date order requires a format override such as %d/%m/%Y %H:%M:%S.');
   const match = automatic.exec(tail);
-  if (!match || (match[2] === '/' && match[5] !== ' ')) throw new Error('Unsupported or incomplete timestamp; use a full date and HH:mm:ss.');
+  if (!match || (match[2] === '/' && match[5] !== ' ')) throw new Error('Unsupported or incomplete timestamp; use a full date and %H:%M:%S.');
   validateTail(tail.slice(match[0].length));
   return match;
 }
 
 function automaticFields(match: RegExpExecArray): CalendarFields {
-  return { YYYY: match[1]!, MM: match[3]!, DD: match[4]!, HH: match[6]!, mm: match[7]!, ss: match[8]!, fraction: match[10], zone: match[11] };
+  return { year: match[1]!, month: match[3]!, day: match[4]!, hour: match[6]!, minute: match[7]!, second: match[8]!, fraction: match[10], zone: match[11] };
 }
 
 function automaticFormat(match: RegExpExecArray): string {
-  return `YYYY${match[2]}MM${match[2]}DD${match[5] === 'T' ? '[T]' : ' '}HH:mm:ss`;
+  return `%Y${match[2]}%m${match[2]}%d${match[5]}%H:%M:%S`;
 }
 
 function ambiguousTimestampMessage(line: string, candidates: RegExpMatchArray[]): string {
@@ -88,8 +90,8 @@ function ambiguousTimestampMessage(line: string, candidates: RegExpMatchArray[])
       const match = matchAutomatic(line.slice(candidate.index));
       // Validate each suggestion independently; UTC here only permits timezone-free candidates.
       calendarKey(automaticFields(match), 0);
-      const fraction = match[10] ? match[9]! + 'S'.repeat(match[10].length) : '';
-      const zone = match[11] ? (match[11] === 'Z' || match[11].includes(':') ? 'Z' : 'ZZ') : '';
+      const fraction = match[10] ? `${match[9]}%${match[10].length}N` : '';
+      const zone = match[11] ? (match[11] === 'Z' || match[11].includes(':') ? '%:z' : '%z') : '';
       formats.add(automaticFormat(match) + fraction + zone);
     } catch {
       // Malformed or unsupported candidates still cause ambiguity, but cannot supply a usable format.
@@ -122,36 +124,27 @@ function escapeRegex(text: string): string {
 
 function compileFormat(format: string): CompiledFormat {
   const fields = new Set<string>();
+  const calendarFields: Record<string, string> = { '%Y': 'year', '%m': 'month', '%d': 'day', '%H': 'hour', '%M': 'minute', '%S': 'second' };
   let pattern = '';
-  let index = 0;
   let endsWithField = false;
-  while (index < format.length) {
-    if (format[index] === '[') {
-      const end = format.indexOf(']', index + 1);
-      if (end < 0) throw new Error('Format has an unclosed bracketed literal.');
-      pattern += escapeRegex(format.slice(index + 1, end));
-      if (end > index + 1) endsWithField = false;
-      index = end + 1;
-      continue;
-    }
-    const token = /^(YYYY|MM|DD|HH|mm|ss|S{1,9}|ZZ|Z)/.exec(format.slice(index))?.[0];
-    if (token) {
-      const field = token.startsWith('S') ? 'fraction' : token.startsWith('Z') ? 'zone' : token;
-      if (fields.has(field)) throw new Error(`Repeated format field: ${field}.`);
+  for (const token of tokenizeDateFormat(format, 'override')) {
+    if (token.kind === 'specifier') {
+      const specifier = token.value;
+      const field = calendarFields[specifier] ?? (specifier.endsWith('N') ? 'fraction' : 'zone');
+      if (fields.has(field)) throw new Error(`Repeated format field: ${specifier}.`);
       fields.add(field);
-      const expression = token === 'Z' ? '(?:Z|[+-]\\d{2}:\\d{2})' : token === 'ZZ' ? '[+-]\\d{4}' : `\\d{${token.length}}`;
+      const width = specifier === '%Y' ? 4 : field === 'fraction' ? (specifier === '%N' ? 9 : Number(specifier[1])) : 2;
+      // Match exact numeric widths or the selected compact/colon offset spelling.
+      const expression = specifier === '%:z' ? '(?:Z|[+-]\\d{2}:\\d{2})' : specifier === '%z' ? '[+-]\\d{4}' : `\\d{${width}}`;
       pattern += `(?<${field}>${expression})`;
       endsWithField = true;
-      index += token.length;
     } else {
-      if (/[A-Za-z\[\]]/.test(format[index]!)) throw new Error('Unknown format token; enclose literal letters in brackets, for example [T].');
-      pattern += escapeRegex(format[index]!);
+      pattern += escapeRegex(token.value);
       endsWithField = false;
-      index++;
     }
   }
-  for (const field of ['YYYY', 'MM', 'DD', 'HH', 'mm', 'ss']) {
-    if (!fields.has(field)) throw new Error(`Incomplete format; ${field} is required.`);
+  for (const [specifier, field] of Object.entries(calendarFields)) {
+    if (!fields.has(field)) throw new Error(`Incomplete format; ${specifier} is required (example: %Y-%m-%d %H:%M:%S).`);
   }
   // Field boundaries prevent truncated values; explicit trailing literals already delimit the timestamp.
   return { expression: new RegExp(`(?<![\\dA-Za-z])${pattern}${endsWithField ? '(?!\\d)' : ''}`, 'g'), endsWithField };
