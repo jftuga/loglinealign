@@ -1,0 +1,59 @@
+{
+  "seed": 20260915,
+  "window_utc": [
+    "2026-09-15T08:00:00.000000Z",
+    "2026-09-15T08:45:00.000000Z"
+  ],
+  "sources": [
+    {
+      "key": "app",
+      "file": "app-mumbai.log",
+      "city": "Mumbai",
+      "offset": "+05:30",
+      "team": "Application team",
+      "system": "orders-api (Spring Boot 2.7)"
+    },
+    {
+      "key": "db",
+      "file": "db-munich.log",
+      "city": "Munich",
+      "offset": "+02:00",
+      "team": "Database team",
+      "system": "SQL Server 2022 on mucsql01"
+    },
+    {
+      "key": "os",
+      "file": "os-munich.log",
+      "city": "Munich",
+      "offset": "+02:00",
+      "team": "OS team",
+      "system": "RHEL 9 host mucsql01"
+    }
+  ],
+  "incidents": [
+    {
+      "number": 1,
+      "loop_down_utc": "2026-09-15T08:07:12.418306Z",
+      "io_timeout_utc": "2026-09-15T08:07:42.418306Z",
+      "loop_up_utc": "2026-09-15T08:08:05.018306Z"
+    },
+    {
+      "number": 2,
+      "loop_down_utc": "2026-09-15T08:19:41.733019Z",
+      "io_timeout_utc": "2026-09-15T08:20:11.733019Z",
+      "loop_up_utc": "2026-09-15T08:20:22.933019Z"
+    },
+    {
+      "number": 3,
+      "loop_down_utc": "2026-09-15T08:31:05.206774Z",
+      "io_timeout_utc": "2026-09-15T08:31:35.206774Z",
+      "loop_up_utc": "2026-09-15T08:32:13.106774Z"
+    },
+    {
+      "number": 4,
+      "loop_down_utc": "2026-09-15T08:38:50.951432Z",
+      "io_timeout_utc": "2026-09-15T08:39:20.951432Z",
+      "loop_up_utc": "2026-09-15T08:39:29.351432Z"
+    }
+  ]
+}

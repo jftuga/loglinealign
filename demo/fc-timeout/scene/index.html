@@ -1,0 +1,19 @@
+<!doctype html>
+<!--
+  Deterministic explainer scene for the fibre channel timeout demo.
+  Exposes window.DURATION and async window.seek(t); every pixel depends only on t and
+  build/scene-data.js. Open directly in a browser with ?t=SECONDS to inspect a frame,
+  and add &captions=1 to overlay the narration cue active at that time.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Three logs, three time zones</title>
+<link rel="stylesheet" href="scene.css">
+</head>
+<body>
+<div id="stage"></div>
+<script src="../build/scene-data.js"></script>
+<script src="scene.js"></script>
+</body>
+</html>
