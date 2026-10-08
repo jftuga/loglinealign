@@ -10,9 +10,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from cue import Cue
 from log_blocks import Block, read_merged_blocks, read_raw_blocks, require_utc_order
 from merge_runner import MergeResult
-from storyboard import Cue, Storyboard
+from storyboard import Storyboard
 
 MUNICH_KEYS = ("db", "os")
 

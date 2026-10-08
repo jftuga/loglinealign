@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from cue import Cue
+
 
 @dataclass(frozen=True)
 class Segment:
@@ -27,23 +29,6 @@ class Segment:
     start: float
     duration: float
     beats: dict[str, float]
-
-
-@dataclass(frozen=True)
-class Cue:
-    """One narration cue with absolute timing.
-
-    Attributes:
-        ident: WebVTT cue identifier, such as "setup-2".
-        start: Absolute start time in seconds.
-        end: Absolute end time in seconds.
-        text: Narration text with placeholders filled.
-    """
-
-    ident: str
-    start: float
-    end: float
-    text: str
 
 
 class Storyboard:

@@ -32,11 +32,28 @@ node ../../../dist/loglinealign.js --timezone +02:00 --file-timezone app-mumbai.
   app-mumbai.log db-munich.log os-munich.log | less -R
 ```
 
+## The video
+
+`make` renders the silent `build/explainer.mp4`; `make mux` adds the voiceover and writes **`build/explainer-narrated.mp4`**, the finished explainer:
+
+| Property | Value |
+| --- | --- |
+| Length | 1:42 (102 s) |
+| Picture | 1920x1080, 30 fps, H.264, about 330 kbit/s |
+| Sound | Narration only, AAC mono 48 kHz, no music or effects |
+| Subtitles | One soft English `mov_text` track, the same cues as the narration |
+| Size | About 5.4 MB |
+
+`build/` is not committed, so the file is built on demand and hosted outside the repository.
+
+<!-- TODO: add the hosted link once the video is uploaded. -->
+
 ## Requirements
 
 - [uv](https://docs.astral.sh/uv/) with Python 3.14 (Playwright 1.63.0 is pinned in `uv.lock`)
 - Node.js 24 or newer, and the built CLI at `../../dist/loglinealign.js` (`make` builds it with `make -C ../.. cli` if it is missing)
 - ffmpeg with libx264
+- For narration only: network access to `huggingface.co` and its file CDN (`*.hf.co`) on the first run, to download the Kokoro-82M weights and voice
 
 ## Usage
 
@@ -52,7 +69,8 @@ make           # build everything that is out of date and write build/explainer.
 | `make stills` | PNG frames with burned-in narration at `TIMES` (for example `make stills TIMES="40 55"`) into `build/stills/` |
 | `make video` | Silent `build/explainer.mp4`, 1920x1080, 30 fps |
 | `make preview` | `build/explainer-captioned.mp4` with narration burned in, for reviewing timing without audio |
-| `make mux AUDIO=narration.wav` | `build/explainer-narrated.mp4` with audio and a soft subtitle track |
+| `make narration` | `build/narration.wav`, spoken by Kokoro-82M from `build/narration.vtt` and exactly as long as the video |
+| `make mux` | `build/explainer-narrated.mp4` with the narration and a soft subtitle track; `AUDIO=path/to/file` uses a recorded voiceover instead |
 | `make clean` | Delete `build/` |
 
 To inspect the scene interactively, open `scene/index.html?t=58&captions=1` in a browser after `make scene`.
@@ -65,16 +83,16 @@ To inspect the scene interactively, open `scene/index.html?t=58&captions=1` in a
 
 The pipeline is deterministic: the generator uses one seeded random generator, so the same code always writes byte-identical logs, and every frame is a pure function of `t` passed to `window.seek(t)`. Text uses system fonts (`system-ui`, Menlo), so renders are pixel-identical on the same machine but may differ slightly elsewhere.
 
-## Narration handoff
+## Narration
 
-`build/narration.vtt` is both the subtitle track and the voiceover script. For the audio pass:
+`build/narration.vtt` is both the subtitle track and the voiceover script. Each cue's start is when speech begins and its end is the latest it may finish. Cues are kept at or below 2.6 words per second.
 
-1. Speak each cue starting at its start time and finish before its end time. Cues are kept at or below 2.6 words per second.
-2. Deliver one WAV or M4A file exactly as long as the video (the duration is printed by `make scene`), with silence between cues.
-3. Pronounce `I/O` as "I O", `HBA` as "H B A", and times such as `13:37` as "thirteen thirty-seven".
-4. Run `make mux AUDIO=path/to/file`.
+`make narration` speaks the cues with [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-2.0, voice `af_heart`) on the CPU. Kokoro does not support Python 3.14, so `narrate.py` is a standalone uv script pinned to Python 3.12, with its dependencies declared inline and locked in `narrate.py.lock`; it does not use the project environment.
 
-If a voice cannot fit a cue, widen the cue (and its segment duration) in `storyboard.toml` and re-render, rather than speeding up the speech.
+- **Pronunciation:** `spoken_text.py` spells out clock times by rule (`13:37` becomes "thirteen thirty-seven", `10:07` "ten oh seven") and rewrites `loglinealign` as "log line align". Kokoro already reads `I/O`, `HBA`, `OS`, `API`, `UTC`, and `SQL Server` ("sequel") correctly. Before adding a term, check what Kokoro does with it: the phonemes it yields are the ground truth, and transcribing the audio with Whisper hides errors because Whisper fills in acronyms from context.
+- **Fitting:** each cue is spoken at normal speed with edge silence trimmed and must end 0.1 s before its cue end. A cue that runs over is spoken again faster, up to speed 1.1. If it still does not fit, the build fails and lists the cues; widen them (and their segment) in `storyboard.toml` rather than raising the speed.
+
+To use a recorded voiceover instead, deliver one WAV or M4A exactly as long as the video with silence between cues, and run `make mux AUDIO=path/to/file`.
 
 ## Study order
 
@@ -83,9 +101,10 @@ If a voice cannot fit a cue, widen the cue (and its segment duration) in `storyb
 3. `os_log.py`, `db_log.py`, `app_log.py` - the three log generators, from simplest to the pool simulation.
 4. `generate_logs.py` - writes the logs and `scenario.json`.
 5. `storyboard.toml` and `storyboard.py` - timing, narration, and validation.
-6. `vtt.py` - narration as WebVTT.
+6. `cue.py` and `vtt.py` - the cue record and narration as WebVTT.
 7. `log_blocks.py` - reading logs and merged output back, with the UTC-order check.
 8. `merge_runner.py` - running the real CLI.
 9. `scene_data.py` and `build_scene_data.py` - assembling what the scene shows.
 10. `scene/index.html`, `scene/scene.css`, `scene/scene.js` - the deterministic scene.
 11. `render.py` and `Makefile` - frame capture, encoding, and the pipeline.
+12. `spoken_text.py`, `narrator.py`, `narrate.py` - text rewriting for speech, Kokoro synthesis and cue fitting, and the narration track.
