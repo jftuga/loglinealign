@@ -10,7 +10,7 @@ A 1:42 narrated explainer: a fibre channel fault that three teams cannot trace u
 
 **Narrated, unmute before playing**
 
-PLACEHOLDER
+https://github.com/user-attachments/assets/1f85bec1-a971-47a6-8f60-d0b52505f463
 
 **Narrated, unmute before playing**
 
