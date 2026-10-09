@@ -12,6 +12,8 @@ A 1:42 narrated explainer: a fibre channel fault that three teams cannot trace u
 
 https://github.com/user-attachments/assets/1a6b2c7f-25c5-4f67-8a99-2cfecc1b5d4d
 
+**Narrated, unmute before playing**
+
 ## Build
 
 Install Node.js 24 or newer, [pnpm](https://pnpm.io/installation) 12.8.1 (pinned in `package.json`), and Make, then run:
