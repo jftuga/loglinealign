@@ -8,7 +8,9 @@ Merge multiple UTF-8 log files into one chronological timeline. A shared TypeScr
 
 A 1:42 narrated explainer: a fibre channel fault that three teams cannot trace until their logs, written in two time zones without offsets, are merged on one clock. The scenario, sample logs, and the pipeline that renders the video are in [demo/fc-timeout](demo/fc-timeout/README.md).
 
-PLACEHOLDER
+**Narrated, unmute before playing**
+
+https://github.com/user-attachments/assets/1a6b2c7f-25c5-4f67-8a99-2cfecc1b5d4d
 
 ## Build
 
