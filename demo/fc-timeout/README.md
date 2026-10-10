@@ -43,6 +43,8 @@ node ../../../dist/loglinealign.js --timezone +02:00 --file-timezone app-mumbai.
 | Sound | Narration only, AAC mono 48 kHz, no music or effects |
 | Subtitles | One soft English `mov_text` track, the same cues as the narration |
 
+`make small` writes **`build/explainer-narrated-hevc.mp4`**, the same video under 10 MB for hosts with an upload limit: two-pass HEVC (tagged `hvc1` for Apple players) with 64 kbit/s AAC narration, encoded directly from `build/explainer.mp4` and the narration. The video bitrate is computed from the duration so that the file targets `SMALL_TARGET_BYTES` (9,850,000), and the build fails if the result is not under `SMALL_MAX_BYTES` (10,000,000). If the video gets longer, the bitrate drops automatically; if it ever fails the limit, lower `SMALL_TARGET_BYTES`.
+
 `build/` is not committed, so the file is built on demand and hosted outside the repository.
 
 The browser segment uses the actual offline application at `../../dist/loglinealign.html`. It explains that files are processed locally and never leave the computer, pointing to the app's offline badge. It loads the three sample logs, assigns their time zones, shows all three source colors together, reverses the ordering, removes file name prefixes, explains the matching options, filters on `LOOP`, and downloads `build/fc-link-filtered.log`. It then fades back to the original closing card and holds it fully visible for two seconds. The original picture and narration remain in `build/explainer-base.mp4` and `build/narration-base.wav`; appending the walkthrough does not require synthesizing the original speech again.
@@ -51,7 +53,7 @@ The browser segment uses the actual offline application at `../../dist/loglineal
 
 - [uv](https://docs.astral.sh/uv/) with Python 3.14 (Playwright 1.63.0 is pinned in `uv.lock`)
 - Node.js 24 or newer, the built CLI at `../../dist/loglinealign.js`, and the offline app at `../../dist/loglinealign.html` (`make` builds missing distributables using the parent Makefile)
-- ffmpeg with libx264
+- ffmpeg with libx264, and libx265 for `make small`
 - For narration only: network access to `huggingface.co` and its file CDN (`*.hf.co`) on the first run, to download the Kokoro-82M weights and voice
 
 ## Usage
@@ -71,6 +73,7 @@ make           # build everything that is out of date and write build/explainer.
 | `make preview` | `build/explainer-captioned.mp4` with narration burned in, for reviewing timing without audio |
 | `make narration` | `build/narration.wav`, spoken by Kokoro-82M from `build/narration.vtt` and exactly as long as the video |
 | `make mux` | `build/explainer-narrated.mp4` with the narration and a soft subtitle track; `AUDIO=path/to/file` uses a recorded voiceover instead |
+| `make small` | `build/explainer-narrated-hevc.mp4`, the narrated video as two-pass HEVC under 10 MB; also honors `AUDIO` |
 | `make clean` | Delete `build/` |
 
 To inspect the scene interactively, open `scene/index.html?t=58&captions=1` in a browser after `make scene`.
