@@ -314,7 +314,7 @@ The intended workload is a handful of roughly 10 MB text files. All entries and 
 <details>
 <summary>Verification</summary>
 
-No automated test framework is included. Use `make check` and `make` when changing behavior. The original acceptance checklist and verification notes remain in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [VERIFICATION.md](VERIFICATION.md); those historical documents do not cover the v0.4.0 interface and per-file time settings. These changes were checked with CLI scenarios and browser checks covering timezone precedence, adjustments, pending settings, downloads, global control visibility, drag-and-drop, and responsive layouts.
+No automated test framework is included. Use `make check` and `make` when changing behavior. The v0.4.0 interface and per-file time settings were checked with CLI scenarios and browser checks covering timezone precedence, adjustments, pending settings, downloads, global control visibility, drag-and-drop, and responsive layouts.
 
 </details>
 
