@@ -1,12 +1,18 @@
 # Reproducible pipeline for the fibre channel timeout explainer:
 #   scenario code -> sample-logs/ -> scene-data.js -> explainer-base.mp4 + browser.mp4 -> explainer.mp4
 #   base/browser VTT -> Kokoro TTS -> concatenated narration.wav -> explainer-narrated.mp4
+#   explainer.mp4 + narration -> 2-pass HEVC -> explainer-narrated-hevc.mp4 (under 10 MB)
 # File targets rebuild only what changed. Run `make setup` once, then `make` after each edit.
 UV ?= uv
 LOGLINEALIGN ?= ../../dist/loglinealign.js
 WEB ?= ../../dist/loglinealign.html
 TIMES ?= 3 15 33 46 55 59 82 89 101
 AUDIO ?= build/narration.wav
+# make small: the hard size limit, the target size the bitrate is computed from (headroom for
+# container overhead and x265 rate-control drift), and the audio bitrate in kbit/s.
+SMALL_MAX_BYTES ?= 10000000
+SMALL_TARGET_BYTES ?= 9850000
+SMALL_AUDIO_KBPS ?= 64
 
 GENERATOR := generate_logs.py scenario.py log_record.py app_log.py db_log.py os_log.py
 BUILDER := build_scene_data.py scene_data.py log_blocks.py merge_runner.py storyboard.py vtt.py cue.py storyboard.toml
@@ -14,7 +20,7 @@ SCENE := scene/index.html scene/scene.css scene/scene.js render.py
 NARRATOR := narrate.py narrate.py.lock narrator.py spoken_text.py vtt.py cue.py
 BROWSER := render_browser.py browser_capture.py browser_walkthrough.py browser-storyboard.toml
 
-.PHONY: all setup logs scene stills video browser preview narration mux clean
+.PHONY: all setup logs scene stills video browser preview narration mux small clean
 all: video
 
 setup:
@@ -79,6 +85,23 @@ mux: build/explainer.mp4 $(AUDIO) build/narration.vtt
 	ffmpeg -y -loglevel error -i build/explainer.mp4 -i "$(AUDIO)" -i build/narration.vtt \
 		-map 0:v -map 1:a -map 2:s -c:v copy -c:a aac -b:a 192k -ar 48000 -c:s mov_text -metadata:s:s:0 language=eng \
 		-movie_timescale 1000 -movflags +faststart build/explainer-narrated.mp4
+
+small: build/explainer-narrated-hevc.mp4
+
+# Two-pass HEVC sized for SMALL_MAX_BYTES: the video bitrate is whatever SMALL_TARGET_BYTES leaves
+# after the audio over the video's duration. The output is deleted if it still exceeds the limit.
+build/explainer-narrated-hevc.mp4: build/explainer.mp4 $(AUDIO) build/narration.vtt
+	@seconds=$$(ffprobe -v error -show_entries format=duration -of csv=p=0 build/explainer.mp4) && \
+	kbps=$$(awk -v b=$(SMALL_TARGET_BYTES) -v s=$$seconds -v a=$(SMALL_AUDIO_KBPS) 'BEGIN { printf "%d", b * 8 / s / 1000 - a }') && \
+	echo "HEVC video bitrate: $${kbps}k for $${seconds} s" && \
+	ffmpeg -y -loglevel error -i build/explainer.mp4 -map 0:v -c:v libx265 -preset slow -b:v $${kbps}k \
+		-x265-params pass=1:stats=build/x265-2pass.log:log-level=error -an -f null /dev/null && \
+	ffmpeg -y -loglevel error -i build/explainer.mp4 -i "$(AUDIO)" -i build/narration.vtt \
+		-map 0:v -map 1:a -map 2:s -c:v libx265 -preset slow -b:v $${kbps}k -x265-params pass=2:stats=build/x265-2pass.log:log-level=error -tag:v hvc1 \
+		-c:a aac -b:a $(SMALL_AUDIO_KBPS)k -ac 1 -ar 48000 -c:s mov_text -metadata:s:s:0 language=eng \
+		-movie_timescale 1000 -movflags +faststart $@ && \
+	bytes=$$(wc -c < $@) && echo "$@: $$bytes bytes" && \
+	if [ $$bytes -ge $(SMALL_MAX_BYTES) ]; then echo "$@ is not under $(SMALL_MAX_BYTES) bytes; lower SMALL_TARGET_BYTES" >&2; rm -f $@; exit 1; fi
 
 clean:
 	rm -rf -- build
