@@ -20,7 +20,8 @@ export type WorkerRequest =
   | { type: 'merge'; revision: number; sources: WebSource[]; timezone: string; reverse: boolean }
   | { type: 'filter'; revision: number; filterRevision: number; options: FilterOptions }
   | { type: 'view'; revision: number; filterRevision: number; request: number; start: number; count: number; filename: boolean }
-  | { type: 'download'; revision: number; filterRevision: number; filename: boolean };
+  | { type: 'download'; revision: number; filterRevision: number; filename: boolean }
+  | { type: 'copy'; revision: number; filterRevision: number; request: number; filename: boolean };
 
 export interface FileReport {
   id: number;
@@ -35,4 +36,5 @@ export type WorkerResponse =
   | { type: 'filtered'; revision: number; filterRevision: number; total: number; entries: number; durationMs: number; error?: string }
   | { type: 'view'; revision: number; filterRevision: number; request: number; start: number; rows: PreviewRow[] }
   | { type: 'download'; revision: number; filterRevision: number; blob: Blob }
+  | { type: 'copy'; revision: number; filterRevision: number; request: number; blob: Blob }
   | { type: 'error'; revision: number; message: string };

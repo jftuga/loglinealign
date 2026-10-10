@@ -27,6 +27,8 @@ const noFilename = element<HTMLInputElement>('no-filename');
 const color = element<HTMLInputElement>('color');
 const verbose = element<HTMLInputElement>('verbose');
 const download = element<HTMLButtonElement>('download');
+const copy = element<HTMLButtonElement>('copy');
+const copyStatus = element<HTMLSpanElement>('copy-status');
 const downloadName = element<HTMLInputElement>('download-name');
 const downloadPreview = element<HTMLParagraphElement>('download-preview');
 const viewport = element<HTMLDivElement>('viewport');
@@ -54,6 +56,8 @@ let total = 0;
 let pending = false;
 let busy = false;
 let downloading = false;
+let copyRequest = 0;
+let pendingCopy: { request: number; resolve: (blob: Blob) => void; reject: (error: Error) => void } | undefined;
 let frame = 0;
 let worker: Worker;
 let downloadPresentation = true;
@@ -150,7 +154,49 @@ function navigateTabs(event: KeyboardEvent): void {
 }
 
 function updateDownload(): void {
-  download.disabled = !total || pending || busy || filtering || downloading || invalidFilename || !errors.hidden || !filterError.hidden;
+  const unavailable = !total || pending || busy || filtering || !errors.hidden || !filterError.hidden;
+  download.disabled = unavailable || downloading || invalidFilename;
+  copy.disabled = unavailable || pendingCopy !== undefined;
+}
+
+/** Cancel clipboard preparation when the output changes or its worker is stopped. */
+function cancelCopy(): void {
+  copyRequest++;
+  pendingCopy?.reject(new Error('The merged output changed. Click Copy again.'));
+  pendingCopy = undefined;
+  copyStatus.textContent = '';
+}
+
+/** Start the clipboard write during the click, then supply all output from the worker. */
+async function copyOutput(): Promise<void> {
+  if (copy.disabled) return;
+  const request = ++copyRequest;
+  copyStatus.textContent = 'Copying…';
+  try {
+    if (!navigator.clipboard) throw new Error('Clipboard access is unavailable. Use Download instead.');
+    const blob = new Promise<Blob>((resolve, reject) => { pendingCopy = { request, resolve, reject }; });
+    // A promise-backed ClipboardItem preserves user activation while the worker prepares large results.
+    // Handle cancellation even if the clipboard API rejects before consuming that promise.
+    void blob.catch(() => {});
+    updateDownload();
+    send({ type: 'copy', revision, filterRevision, request, filename: !noFilename.checked });
+    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+      await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+    } else {
+      await navigator.clipboard.writeText(await (await blob).text());
+    }
+    if (pendingCopy?.request === request) copyStatus.textContent = 'Copied!';
+  } catch (error) {
+    if (request === copyRequest) {
+      copyStatus.textContent = `Copy failed: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  } finally {
+    if (pendingCopy?.request === request) {
+      pendingCopy.reject(new Error('Clipboard operation finished.'));
+      pendingCopy = undefined;
+    }
+    updateDownload();
+  }
 }
 
 function readFilter(): FilterOptions {
@@ -241,6 +287,7 @@ function changeFilter(): void {
 }
 
 function clearPreview(): void {
+  cancelCopy();
   total = 0;
   rows.replaceChildren();
   spacer.style.height = '0px';
@@ -565,6 +612,8 @@ function receive(event: MessageEvent<WorkerResponse>): void {
     downloading = false;
     if (!pending && !busy && !filtering && filterError.hidden && downloadPresentation === !noFilename.checked) saveDownload(message.blob, downloadFilename);
     updateDownload();
+  } else if (message.type === 'copy') {
+    if (message.filterRevision === filterRevision && pendingCopy?.request === message.request) pendingCopy.resolve(message.blob);
   } else {
     warnings.hidden = true;
     cancelFilter();
@@ -636,7 +685,7 @@ function initialize(): void {
     element(id).addEventListener('click', () => startMerge());
   }
   reverse.addEventListener('change', () => startMerge(false));
-  noFilename.addEventListener('change', scheduleView);
+  noFilename.addEventListener('change', () => { cancelCopy(); updateDownload(); scheduleView(); });
   color.addEventListener('change', () => {
     for (const row of rows.children) (row as HTMLElement).style.color = color.checked ? sourceColor(Number((row as HTMLElement).dataset.order)).css : '';
   });
@@ -647,6 +696,7 @@ function initialize(): void {
   viewport.addEventListener('scroll', scheduleView, { passive: true });
   new ResizeObserver(scheduleView).observe(viewport);
   downloadName.addEventListener('input', updateFilenamePreview);
+  copy.addEventListener('click', copyOutput);
   updateFilenamePreview();
   download.addEventListener('click', () => {
     if (download.disabled) return;

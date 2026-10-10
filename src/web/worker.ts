@@ -160,8 +160,11 @@ async function handle(request: WorkerRequest): Promise<void> {
     else if (request.type === 'filter') applyFilter(request);
     else if (request.type === 'view') view(request);
     else if (request.revision === resultRevision && request.filterRevision === resultFilterRevision && total) {
-      const blob = new Blob([...outputChunks(filteredEntries, { filename: request.filename, filenameWidth, color: false })], { type: 'text/plain;charset=utf-8' });
-      reply({ type: 'download', revision: request.revision, filterRevision: request.filterRevision, blob });
+      // ClipboardItem requires an exact MIME type match, including in Firefox.
+      const type = request.type === 'copy' ? 'text/plain' : 'text/plain;charset=utf-8';
+      const blob = new Blob([...outputChunks(filteredEntries, { filename: request.filename, filenameWidth, color: false })], { type });
+      if (request.type === 'copy') reply({ type: 'copy', revision: request.revision, filterRevision: request.filterRevision, request: request.request, blob });
+      else reply({ type: 'download', revision: request.revision, filterRevision: request.filterRevision, blob });
     }
   } catch (error) { reply({ type: 'error', revision: request.revision, message: errorText(error) }); }
 }
