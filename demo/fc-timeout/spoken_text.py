@@ -3,8 +3,8 @@
 Clock times are spelled out the way a speaker says them, because Kokoro's G2P reads
 "10:07" as "ten zero seven". Times are converted by rule rather than listed, since the
 narration's times are filled in from the generated logs. The lexicon holds only terms the
-G2P gets wrong: it already reads I/O, HBA, OS, API, UTC, and SQL Server ("sequel") correctly,
-and spacing acronyms out ("H B A") makes it read a lone "A" as the article.
+G2P gets wrong, using speech spellings and explicit Kokoro pronunciation hints.
+Other acronyms retain their original spelling; spacing them out can change their meaning.
 """
 
 import re
@@ -19,11 +19,16 @@ TENS = ("", "", "twenty", "thirty", "forty", "fifty")
 # and a two-digit minute 00-59. Word boundaries keep it from matching inside longer numbers.
 CLOCK_TIME = re.compile(r"\b([01]?\d|2[0-3]):([0-5]\d)\b")
 
-LEXICON: tuple[tuple[re.Pattern[str], str], ...] = tuple(
-    (re.compile(rf"\b{re.escape(term)}\b"), replacement)
-    for term, replacement in (
-        ("loglinealign", "log line align"),
-    )
+# Word boundaries avoid replacing parts of longer words. Consume an existing period
+# after OS so a sentence ending in "OS." becomes "O.S.", not "O.S..".
+LEXICON: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bloglinealign\b"), "log line align"),
+    (re.compile(r"\bremerge\b", re.IGNORECASE), "re-merge"),
+    (re.compile(r"\bOS\b\.?"), "O.S."),
+    (re.compile(r"\bfilename(s?)\b", re.IGNORECASE), r"file name\1"),
+    (re.compile(r"\btimezone(s?)\b", re.IGNORECASE), r"time zone\1"),
+    # Kokoro's [word](/phonemes/) syntax adds the unstressed vowel before the final n.
+    (re.compile(r"\bwritten\b", re.IGNORECASE), r"[\g<0>](/ɹˈɪtən/)"),
 )
 
 
@@ -67,7 +72,7 @@ def spoken(text: str) -> str:
         text: Narration text as it appears in the subtitles.
 
     Returns:
-        Text with clock times and lexicon terms spelled out.
+        Text with speech spellings and Kokoro pronunciation hints.
     """
     text = CLOCK_TIME.sub(clock_words, text)
     for pattern, replacement in LEXICON:

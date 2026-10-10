@@ -2,7 +2,7 @@
 
 This is the bridge between the generated logs and the rendered video: it executes
 the real CLI, extracts the lines the scene shows, and writes build/scene-data.js
-(loaded by scene/index.html) and build/narration.vtt (subtitles and voice script).
+(loaded by scene/index.html) and build/narration-base.vtt (the original voice script).
 """
 
 import argparse
@@ -43,8 +43,8 @@ def main() -> None:
     cues = storyboard.cues(builder.placeholders())
     data = builder.build(cues)
     (args.build / "scene-data.js").write_text(f"window.SCENE_DATA = {json.dumps(data, separators=(',', ':'))};\n", encoding="utf-8")
-    (args.build / "narration.vtt").write_text(render_vtt(cues), encoding="utf-8")
-    print(f"wrote {args.build / 'scene-data.js'}, {args.build / 'narration.vtt'} ({len(cues)} cues, {storyboard.duration:.1f} s)")
+    (args.build / "narration-base.vtt").write_text(render_vtt(cues), encoding="utf-8")
+    print(f"wrote {args.build / 'scene-data.js'}, {args.build / 'narration-base.vtt'} ({len(cues)} cues, {storyboard.duration:.1f} s)")
     print(f"aligned command: {aligned.command}")
 
 

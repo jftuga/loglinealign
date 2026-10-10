@@ -25,8 +25,8 @@ id = "setup"
 duration = 12.0
 beats = { mumbai = 0.4, munich = 3.0, os = 5.9, teams = 8.8 }
 cues = [
-  { at = 0.4, end = 5.6, text = "The orders API runs in Mumbai. Its SQL Server database runs in Munich," },
-  { at = 5.9, end = 11.5, text = "on a Linux host with fibre channel storage. Each layer has its own team." },
+  { at = 0.4, end = 5.6, text = "The orders API runs in Mumbai. Its SQL Server database runs in Munich." },
+  { at = 5.9, end = 11.5, text = "Its Linux host uses fibre channel storage. Each layer has its own team." },
 ]
 
 [[segments]]
@@ -45,7 +45,7 @@ duration = 26.0
 beats = { sweep = 0.3, sweep_end = 4.5, gap = 5.8, snippet = 8.2, command = 11.9, zones = 15.6, shift = 17.6, shift_end = 20.0, zoom_end = 22.0, columns = 21.9 }
 cues = [
   { at = 0.3, end = 5.3, text = "Merge them as written, and loglinealign must assume everything is UTC." },
-  { at = 5.8, end = 11.4, text = "Munich lands hours before Mumbai. The errors are three and a half hours apart." },
+  { at = 5.8, end = 11.4, text = "The Munich errors appear three and a half hours before the Mumbai errors." },
   { at = 11.9, end = 15.3, text = "None of these logs record an offset." },
   { at = 15.6, end = 21.9, text = "So give each file its time zone: plus five thirty for Mumbai, plus two for Munich." },
   { at = 21.9, end = 25.6, text = "Now the errors line up, four times." },
@@ -72,11 +72,12 @@ cues = [
 
 [[segments]]
 id = "close"
-duration = 11.0
-beats = { reported = 0.4, caused = 3.4, takeaway = 6.8 }
+duration = 11.8
+beats = { reported = 0.4, caused = 5.5, takeaway = 7.9 }
 cues = [
-  { at = 0.4, end = 6.4, text = "The teams reported it app, then database, then OS. The cause ran the other way." },
-  { at = 6.8, end = 10.4, text = "Align the clocks first. Then correlate." },
+  { at = 0.4, end = 5.1, text = "The teams reported the application first, then the database, then the OS." },
+  { at = 5.5, end = 7.9, text = "The cause ran the other way." },
+  { at = 7.9, end = 11.5, text = "Align the clocks first. Then correlate." },
 ]
 
 # Substrings that classify each log entry's first line for the timeline lanes.
