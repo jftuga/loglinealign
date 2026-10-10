@@ -1,0 +1,26 @@
+# Timing and narration for the real browser walkthrough appended to the explainer.
+# Beats schedule browser actions; cues use the existing Kokoro voice and subtitle pipeline.
+[video]
+width = 1920
+height = 1080
+fps = 30
+max_words_per_second = 2.6
+
+[[segments]]
+id = "browser"
+duration = 93.2
+beats = { privacy = 5.8, load = 11.0, zones = 16.0, merge = 26.0, colors = 31.0, settings = 40.0, newest = 49.0, search = 58.0, query = 67.0, filtered = 74.0, download = 81.0, fade = 90.0, card = 90.6 }
+cues = [
+  { at = 0.5, end = 5.5, text = "Now let's see what this looks like in the browser." },
+  { at = 5.8, end = 10.8, text = "Your files are processed locally and never leave your computer." },
+  { at = 11.0, end = 15.5, text = "Load the same three logs: application, database, and OS." },
+  { at = 16.0, end = 25.5, text = "Set Mumbai to plus five thirty, and both Munich files to plus two. Then select Remerge." },
+  { at = 26.5, end = 30.5, text = "Hide the controls and scroll into the merged timeline." },
+  { at = 32.0, end = 39.5, text = "All three sources appear together: application in blue, database in green, and OS in orange." },
+  { at = 41.0, end = 48.5, text = "In Merge Settings, show the controls. Enable reverse chronological order, and select No file name." },
+  { at = 50.0, end = 57.5, text = "Newest entries are now at the top. Original timestamps stay unchanged; assigned time zones determine the order." },
+  { at = 59.0, end = 66.5, text = "Search and Filter offers three matching options: match case, whole word, and regular expression." },
+  { at = 68.0, end = 73.5, text = "Search for LOOP to find the fibre channel link dropping and recovering." },
+  { at = 75.0, end = 80.5, text = "Hide the controls. Matching events stay newest first, with the search term highlighted." },
+  { at = 82.0, end = 89.0, text = "Open Download and save the filtered log, ready to share with the team." },
+]
