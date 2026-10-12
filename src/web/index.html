@@ -10,8 +10,8 @@
 </head>
 <body>
   <header class="masthead">
-    <div><div class="eyebrow">LOCAL FILES / ONE TIMELINE</div><h1>loglinealign<span class="dot">.</span></h1><p>Bring scattered logs into chronological order.</p></div>
-    <div class="identity"><span class="offline">Offline · files stay on this device</span><a id="repository" target="_blank" rel="noopener noreferrer">Source &amp; version</a></div>
+    <div><div class="eyebrow">LOCAL FILES / ONE TIMELINE</div><h1 id="wordmark"><span>Log</span><span>Line</span><span>Align</span><span>.</span></h1><p>Bring scattered logs into chronological order. <button id="about-toggle" class="link-button" type="button" aria-expanded="false" aria-controls="about">What is this?</button></p><p id="about" hidden>LogLineAlign merges log files from different machines, services, or time zones into one timeline sorted by timestamp, keeping multiline entries such as stack traces intact. Add your files, set a timezone for any whose timestamps lack an offset, then search, copy, or download the result. Everything runs inside this page; your files never leave this device.</p></div>
+    <div class="identity"><span class="offline">Offline · files stay on this device</span><div id="identity-links" class="identity-links"><a id="repository" target="_blank" rel="noopener noreferrer">Source &amp; version</a><button id="disclaimer-toggle" class="link-button" type="button" aria-expanded="false" aria-controls="disclaimer">Disclaimer</button><div id="disclaimer" role="note" hidden>LogLineAlign was written entirely by AI models. It can misdetect timestamps, assume the wrong timezone, or misorder or drop entries. Before acting on a merged timeline, for example during an incident, check the entries that matter against the original log files. Provided as is, without warranty, under the MIT license.</div></div></div>
   </header>
   <main id="workspace">
     <section id="result" class="result card" aria-label="Merged result">
