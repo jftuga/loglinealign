@@ -1,6 +1,6 @@
 {
   "name": "loglinealign",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Merge text log entries chronologically in Node.js or an offline browser",
   "private": true,
   "type": "module",
@@ -8,7 +8,11 @@
   "repository": "https://github.com/jftuga/loglinealign",
   "engines": { "node": ">=24" },
   "packageManager": "pnpm@12.8.1",
-  "scripts": { "check": "tsc --noEmit", "build": "node scripts/build.mjs all" },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "node scripts/build.mjs all",
+    "test": "node scripts/build.mjs cli && node --test tests/*.test.mjs"
+  },
   "devDependencies": {
     "@types/node": "24.7.0",
     "esbuild": "0.25.10",

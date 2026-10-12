@@ -9,6 +9,7 @@ Install Node.js 24+, Make, and the [pnpm](https://pnpm.io/installation) version 
 ```sh
 make setup
 make check
+make test
 make
 ```
 
@@ -19,9 +20,10 @@ make
 | `make cli` | `dist/loglinealign.js` |
 | `make web` | Minified `dist/loglinealign.html`, with all assets embedded |
 | `make check` | Strict TypeScript checking, without emitted files |
+| `make test` | Rebuild the CLI and run automated regression tests with Node's built-in test runner |
 | `make clean` | Delete build output, installed dependencies, local pnpm store, TypeScript build caches, and pnpm debug logs with `rm -rf` |
 
-`pnpm check` and `pnpm build` are alternatives. `make NODE=/path/to/node` selects a Node executable. After `make clean`, run `make setup` again. Cleanup follows `.gitignore`'s generated-project rules, preserving source, lockfiles, input/output logs, `.env` files, and external pnpm stores.
+`pnpm check`, `pnpm test`, and `pnpm build` are alternatives. `make NODE=/path/to/node` selects a Node executable. After `make clean`, run `make setup` again. Cleanup follows `.gitignore`'s generated-project rules, preserving source, lockfiles, input/output logs, `.env` files, and external pnpm stores.
 
 ### Build details
 
@@ -31,7 +33,7 @@ make
 
 ### Releases
 
-Pushing a `v*` tag runs [.github/workflows/release.yml](../.github/workflows/release.yml), which runs `make setup`, `make check`, and `make`, then creates a GitHub release with generated notes. The tag must equal `v` plus the `package.json` version, and no release may already exist for it. Bump the version, merge, then tag `main`:
+Pushing a `v*` tag runs [.github/workflows/release.yml](../.github/workflows/release.yml), which runs `make setup`, `make check`, `make test`, and `make`, then creates a GitHub release with generated notes. The tag must equal `v` plus the `package.json` version, and no release may already exist for it. Bump the version, merge, then tag `main`:
 
 ```sh
 git tag v0.6.2
@@ -46,9 +48,18 @@ Designed for a handful of roughly 10 MB text files, with all decoded text and en
 
 ## Verification
 
-There is no dedicated automated application test suite. `make check` and `make` verify types and builds, not runtime correctness.
+Run `make test` or `pnpm test` after installing dependencies. Both rebuild the CLI before running `tests/*.test.mjs` with Node's built-in test runner; no additional test dependencies are required. Each test invokes the distributable in a separate process and checks output, diagnostics, exit status, or filesystem effects. Temporary fixtures are removed after each test, subprocesses have timeouts, and the subprocess timezone is pinned to UTC.
 
-For behavior changes, compare output with original logs across CLI and browser scenarios: timezone precedence, adjustments, multiline entries, stable ordering, pending settings, filtering, downloads, drag-and-drop, and responsive layouts.
+The suite covers:
+
+- All 5,175 lines in the [demo sample logs](../demo/fc-timeout/sample-logs), with timezone-aligned ascending/reverse output and the naive UTC warning. Expected timelines come from a narrow, independent fixture reader using `scenario.json` offsets, not from the production parser or recorded CLI output.
+- Unsorted and duplicate entries, stable ties, multiline blocks, nanosecond precision, timezone precedence, clock adjustments, calendar and epoch overrides, encoding, and malformed timestamps.
+- CLI argument validation, help/version, labels, colors, diagnostics, and standalone use in CommonJS and ES module projects.
+- Output creation/replacement, input protection through equivalent paths and links, parse-failure preservation, filename templates, and nonregular-file rejection. Named-pipe checks are skipped on Windows; link checks skip there only when Windows denies link creation.
+
+[Linux CI](../.github/workflows/test.yml) runs on branch pushes and pull requests with Node 24, checking types, running tests, and building the browser artifact. Release builds also require the CLI suite to pass. `make check` and builds alone do not verify runtime behavior.
+
+The CLI exercises the engine shared with the browser, but does not test browser interaction or worker integration. Automated browser tests are deferred. For browser changes, manually open the built HTML, load the sample logs, assign offsets, and check remerge, pending-settings export blocking, reverse order, filtering, copy/download contents, drag-and-drop, and responsive layouts. In particular, confirm exports include matching lines beyond the visible preview. A future browser smoke suite would automate these steps against the built standalone HTML using a browser automation runner and an installed browser.
 
 The [demo pipeline](../demo/fc-timeout/README.md) checks aligned CLI chronology, browser source colors, reverse order, and downloaded filtered text while generating the demo. It is not a general regression suite.
 
