@@ -1,8 +1,8 @@
-# Build both distributables with project-local tools. Run make install first.
+# Build both distributables with project-local tools. Run make setup first.
 NODE ?= node
-.PHONY: all install cli web check clean
+.PHONY: all setup cli web check clean
 all: cli web
-install:
+setup:
 	pnpm install --frozen-lockfile
 cli:
 	$(NODE) scripts/build.mjs cli
