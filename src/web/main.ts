@@ -629,6 +629,13 @@ function receive(event: MessageEvent<WorkerResponse>): void {
   }
 }
 
+/** Shows or hides the panel a disclosure button controls and returns the new expanded state. */
+function setDisclosure(button: HTMLButtonElement, expanded: boolean): boolean {
+  button.setAttribute('aria-expanded', String(expanded));
+  element(button.getAttribute('aria-controls')!).hidden = !expanded;
+  return expanded;
+}
+
 function createWorker(): Worker {
   const url = URL.createObjectURL(new Blob([__WORKER_CODE__], { type: 'text/javascript' }));
   const instance = new Worker(url);
@@ -657,6 +664,22 @@ function initialize(): void {
   const repository = element<HTMLAnchorElement>('repository');
   repository.href = __REPOSITORY__;
   repository.textContent = `loglinealign v${__VERSION__} · GitHub`;
+  // Color each wordmark part like the first loaded sources so the title previews the palette order.
+  for (const [order, part] of [...element('wordmark').children].entries()) (part as HTMLElement).style.color = sourceColor(order).css;
+  const aboutToggle = element<HTMLButtonElement>('about-toggle');
+  aboutToggle.addEventListener('click', () => {
+    const expanded = setDisclosure(aboutToggle, aboutToggle.getAttribute('aria-expanded') !== 'true');
+    aboutToggle.textContent = expanded ? 'Hide' : 'What is this?';
+  });
+  const disclaimerToggle = element<HTMLButtonElement>('disclaimer-toggle');
+  disclaimerToggle.addEventListener('click', () => setDisclosure(disclaimerToggle, disclaimerToggle.getAttribute('aria-expanded') !== 'true'));
+  // The disclaimer overlays the page, so dismiss it like a popover: Escape or any click outside it.
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !element('disclaimer').hidden) { setDisclosure(disclaimerToggle, false); disclaimerToggle.focus(); }
+  });
+  document.addEventListener('click', event => {
+    if (!element('identity-links').contains(event.target as Node)) setDisclosure(disclaimerToggle, false);
+  });
   worker = createWorker();
   for (const tab of tabs) {
     tab.addEventListener('click', () => selectTab(tab));

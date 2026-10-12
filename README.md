@@ -1,4 +1,4 @@
-# loglinealign
+# LogLineAlign
 
 Merge multiple UTF-8 log files into one chronological timeline. A shared TypeScript engine powers a Node.js CLI and a standalone, completely offline browser page. Inputs may be unsorted; multiline entries, duplicates, and nanosecond precision are preserved.
 
@@ -100,7 +100,7 @@ Errors and verbose diagnostics go to STDERR. Verbose output includes source name
 `--version` prints exactly these two uncolored lines and a final newline:
 
 ```text
-loglinealign v0.6.0
+loglinealign v0.6.1
 https://github.com/jftuga/loglinealign
 ```
 
