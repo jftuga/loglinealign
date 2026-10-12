@@ -29,6 +29,17 @@ make
 
 [scripts/build.mjs](../scripts/build.mjs) bundles both artifacts without runtime dependencies. The CLI runs with Node 24+ in CommonJS or ES module projects without sibling files. The HTML embeds its application, worker, and styles; esbuild minifies the assets and html-minifier-terser minimizes HTML. The CLI remains unminified. Bundling does not type-check, so run `make check` separately.
 
+### Releases
+
+Pushing a `v*` tag runs [.github/workflows/release.yml](../.github/workflows/release.yml), which runs `make setup`, `make check`, and `make`, then creates a GitHub release with generated notes. The tag must equal `v` plus the `package.json` version, and no release may already exist for it. Bump the version, merge, then tag `main`:
+
+```sh
+git tag v0.6.2
+git push origin v0.6.2
+```
+
+The release contains both distributables, `loglinealign-VERSION.tar.xz` and `loglinealign-VERSION.zip` (each with a top-level `loglinealign-VERSION/` folder holding `README.md`, `LICENSE`, `docs/`, and both distributables, compressed at maximum level), and a `SHA256SUMS` file covering the other four assets.
+
 ## Scope
 
 Designed for a handful of roughly 10 MB text files, with all decoded text and entries held in memory. There is no external sorting, live tailing, directory traversal, compressed-input support, server component, or sorted-input mode. Extremely long lines can slow browser rendering. Source colors repeat after eight files.
