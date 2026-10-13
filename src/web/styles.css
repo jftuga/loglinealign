@@ -110,7 +110,9 @@ code{font-family:ui-monospace,monospace;color:#c9dccd;overflow-wrap:anywhere}
 .log-row{height:22px;white-space:pre}
 .source-colors .log-row{color:var(--source-color)}
 #viewport.full-results #rows{position:relative;top:0}
-#browser-find-panel{display:flex;align-items:center;gap:12px;padding:12px 22px;font-size:12px;background:#25313b;flex:none}
+#browser-find-panel{display:flex;align-items:center;gap:12px;padding:12px 22px;font-size:12px;background:#25313b;flex:none;border-left:4px solid transparent}
+#browser-find-panel[data-state=confirm]{background:#3d2f12;border-color:#ffc857;color:#ffe3a8}
+#browser-find-panel[data-state=ready]{background:#163a29;border-color:var(--accent);color:#d4f7e3}
 #browser-find-status{flex:1}
 .log-row mark{background:#ffe08a;color:#182028;border-radius:2px}
 #empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#bfccd6;font:15px system-ui;text-align:center;padding:20px;pointer-events:none}
