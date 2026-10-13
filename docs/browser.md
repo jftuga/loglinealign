@@ -22,6 +22,16 @@ Format, timezone, and adjustment edits remain pending until **Remerge**. Adding,
 
 In **Merge Settings**, use **Reverse chronological order**, **No filename**, or **Color by source** to change the result's presentation. Filename prefixes are shown by default. **Show processing details** reports formats, effective timezones, unused fallbacks, and nonzero adjustments separately from the output.
 
+### Search off-screen results with browser Find
+
+Select **Enable browser Find across all results** in **Merge Settings** to use your browser's Ctrl+F / Cmd+F across every retained result line, including displayed filename prefixes. The option is off by default and applies immediately without Remerge. Wait for **Browser Find ready** before searching; matches are incomplete while the full view is being prepared.
+
+The full view preserves source colors, filter highlights, and ordering. Active filters still exclude lines from browser Find. Unlike **Filter logs**, browser Find navigates matches without removing their surrounding lines, and can also match other visible page text.
+
+More than 50,000 retained lines or 10 MB of retained UTF-8 output (including displayed prefixes and line breaks) triggers a warning with **Continue** and **Cancel**. These are advisory thresholds, not hard limits or estimates of browser memory use. Filtering or remerging checks the new result again. Filename changes rebuild the view and can require confirmation if the output grows beyond the previously approved size. Large results may slow the tab or exhaust memory.
+
+Preparation runs in batches with progress and a **Cancel** button. Cancel, or uncheck the option, to return to the lightweight preview and release the extra page elements. The warning and progress controls remain available with the controls hidden or results expanded. Copy and Download still export all retained lines while the view is being prepared. Changing filters, order, or filenames rebuilds the searchable view and may reset an active browser Find selection. The setting lasts only for the current page session.
+
 ## Navigate and show controls
 
 Switching tabs preserves edits and results without merging. Use Left/Right arrows between focused tabs, or Home/End for the first/last tab. Hover or focus filter buttons for matching-option descriptions.

@@ -62,7 +62,17 @@ The suite covers:
 
 [Linux CI](../.github/workflows/test.yml) runs on branch pushes and pull requests with Node 24, checking types, running tests, and building the browser artifact. Release builds also require the CLI suite to pass. `make check` and builds alone do not verify runtime behavior.
 
-The CLI exercises the engine shared with the browser, but does not test browser interaction. The filter tests also exercise worker integration. Automated browser tests are deferred. For browser changes, manually open the built HTML, load the sample logs, assign offsets, and check remerge, pending-settings export blocking, reverse order, filtering, copy/download contents, drag-and-drop, and responsive layouts. In particular, confirm exports include matching lines beyond the visible preview. A future browser smoke suite would automate these steps against the built standalone HTML using a browser automation runner and an installed browser.
+The CLI exercises the engine shared with the browser, but does not test browser interaction. The filter tests also exercise worker integration, retained UTF-8 byte counts, and full-view batches beyond the viewport. For browser changes, manually open the built HTML, load the sample logs, assign offsets, and check remerge, pending-settings export blocking, reverse order, filtering, copy/download contents, drag-and-drop, and responsive layouts. In particular, confirm exports include matching lines beyond the visible preview.
+
+An optional focused browser check uses the demo's Playwright environment without adding Node dependencies:
+
+```sh
+make web
+# After installing the demo dependencies and Playwright Firefox/Chromium browsers:
+demo/fc-timeout/.venv/bin/python tests/browser-find.py
+```
+
+It exercises Firefox and Chromium against the standalone HTML: full results, off-screen text search through `window.find`, filtering, source colors, highlights, filename changes, reverse ordering, downloads, cancellation, obsolete batches, and both large-result warning thresholds. It also checks Firefox's automatic scrolling to matches; Chromium's JavaScript API does not scroll, even on a minimal page. Synthetic 70,000- and 105,000-line inputs approximate the sample logs' 143 bytes per line and report preparation time. Use `--browsers chrome` or `--browsers msedge` to test an installed Chrome or Edge instead. These checks are optional and are not part of `make test` or CI. Manually check native Ctrl+F / Cmd+F toolbar match counts, scrolling, and next/previous navigation in Firefox, Chrome, and Edge; `window.find` does not automate the browser toolbar.
 
 The [demo pipeline](../demo/fc-timeout/README.md) checks aligned CLI chronology, browser source colors, reverse order, and downloaded filtered text while generating the demo. It is not a general regression suite.
 

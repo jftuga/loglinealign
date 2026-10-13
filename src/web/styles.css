@@ -108,6 +108,10 @@ code{font-family:ui-monospace,monospace;color:#c9dccd;overflow-wrap:anywhere}
 #spacer{position:relative;min-width:100%}
 #rows{position:absolute;left:0;min-width:100%;width:max-content;padding:0 18px}
 .log-row{height:22px;white-space:pre}
+.source-colors .log-row{color:var(--source-color)}
+#viewport.full-results #rows{position:relative;top:0}
+#browser-find-panel{display:flex;align-items:center;gap:12px;padding:12px 22px;font-size:12px;background:#25313b;flex:none}
+#browser-find-status{flex:1}
 .log-row mark{background:#ffe08a;color:#182028;border-radius:2px}
 #empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#bfccd6;font:15px system-ui;text-align:center;padding:20px;pointer-events:none}
 #empty span{color:#7d8f9e;font-size:12px;margin-top:9px}
@@ -131,7 +135,7 @@ code{font-family:ui-monospace,monospace;color:#c9dccd;overflow-wrap:anywhere}
 .expanded-vertical .masthead,.expanded-vertical footer,.expanded-vertical #collapse-controls{display:none}
 .expanded-vertical main{padding:0}
 .expanded-vertical .result{display:flex;flex-direction:column;height:100dvh;min-height:0;border:0;border-radius:0;overflow:hidden}
-.expanded-vertical .result>:not(.result-heading):not(#viewport),.expanded-vertical .result-heading>:not(.result-actions){display:none!important}
+.expanded-vertical .result>:not(.result-heading):not(#viewport):not(#browser-find-panel),.expanded-vertical .result-heading>:not(.result-actions){display:none!important}
 .expanded-vertical .result-heading{flex:none;justify-content:flex-end;padding:8px 12px}
 .expanded-vertical main #viewport{flex:1;min-height:0;height:auto;border-bottom:0}
 footer{padding:25px 36px;color:#7b8b99;font-size:11px;letter-spacing:.3px}

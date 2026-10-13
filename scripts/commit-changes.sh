@@ -9,5 +9,5 @@ if ! git diff --cached --quiet -- PR.md; then
   git restore --staged -- PR.md
 fi
 
-git commit -m "${1:-Add cascading web filters and bump version to 0.7.0}"
+git commit -m "${1:-Add full-results browser Find and bump version to 0.8.0}"
 # Intentionally do not push.
