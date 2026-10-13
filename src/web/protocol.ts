@@ -1,4 +1,4 @@
-/** Typed messages connect the UI to its embedded worker. Only viewport rows and download blobs leave the worker, keeping large results off the DOM thread. */
+/** Typed messages connect the UI to its embedded worker. Rows leave the worker in bounded batches, including when preparing the full browser-searchable view. */
 import type { Diagnostics, Source } from '../core/types';
 import type { FilterOptions, HighlightRange } from './filter';
 
@@ -33,7 +33,7 @@ export interface FileReport {
 
 export type WorkerResponse =
   | { type: 'merged'; revision: number; total: number; entries: number; reports: FileReport[]; errors: string[]; warning?: string; durationMs: number }
-  | { type: 'filtered'; revision: number; filterRevision: number; total: number; entries: number; durationMs: number; error?: string }
+  | { type: 'filtered'; revision: number; filterRevision: number; total: number; entries: number; textBytes: number; filenameBytes: number; durationMs: number; error?: string }
   | { type: 'view'; revision: number; filterRevision: number; request: number; start: number; rows: PreviewRow[] }
   | { type: 'download'; revision: number; filterRevision: number; blob: Blob }
   | { type: 'copy'; revision: number; filterRevision: number; request: number; blob: Blob }

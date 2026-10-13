@@ -53,7 +53,7 @@ test('worker preview, copy, and download share cascaded results, including lines
   const code = await bundle('src/web/worker.ts', 'iife');
   let receive;
   const self = { postMessage: message => receive(message) };
-  runInNewContext(code, { self, Blob, TextDecoder, performance });
+  runInNewContext(code, { self, Blob, TextDecoder, TextEncoder, performance });
   const send = request => new Promise(resolve => { receive = resolve; self.onmessage({ data: request }); });
   const lines = Array.from({ length: 80 }, (_, index) => `2026-01-01T00:00:00Z error api ${index % 2 ? 'retry' : 'done'} ${index}`);
   const file = new File([lines.join('\n')], 'error-api.log');
@@ -63,6 +63,8 @@ test('worker preview, copy, and download share cascaded results, including lines
   const base = { revision: 1, filterRevision: 1 };
   const filtered = await send({ type: 'filter', ...base, options: [option('error'), option('api'), option('done', { invert: true })] });
   assert.equal(filtered.total, 40);
+  assert.equal(filtered.textBytes, Buffer.byteLength(lines.filter((_, index) => index % 2).join('\n') + '\n'));
+  assert.equal(filtered.filenameBytes, Buffer.byteLength('[error-api.log] ') * 40);
   const view = await send({ type: 'view', ...base, request: 1, start: 0, count: 2, filename: true });
   assert.equal(view.rows.length, 2);
   assert.equal(view.rows[0].text, `[error-api.log] ${lines[1]}`);
@@ -77,4 +79,35 @@ test('worker preview, copy, and download share cascaded results, including lines
   assert.match(invalid.error, /Filter 2/);
   const recovered = await send({ type: 'filter', revision: 1, filterRevision: 3, options: [option('')] });
   assert.equal(recovered.total, lines.length);
+});
+
+test('full-view batches cover retained Unicode output exactly, including the final partial batch', async () => {
+  const code = await bundle('src/web/worker.ts', 'iife');
+  let receive;
+  const self = { postMessage: message => receive(message) };
+  runInNewContext(code, { self, Blob, TextDecoder, TextEncoder, performance });
+  const send = request => new Promise(resolve => { receive = resolve; self.onmessage({ data: request }); });
+  const lines = Array.from({ length: 2406 }, (_, index) => `2026-01-01T00:00:00Z ${index % 2 ? 'keep é😀' : 'omit'} ${index}`);
+  const file = new File([lines.join('\n')], '日志.log');
+  await send({ type: 'merge', revision: 1, timezone: '', reverse: false, sources: [{ ...entry([]).source, label: file.name, file, included: true, format: '', timezone: '', timeShift: '+00:00' }] });
+  const base = { revision: 1, filterRevision: 1 };
+  const filtered = await send({ type: 'filter', ...base, options: [option('keep')] });
+  assert.equal(filtered.total, 1203);
+  const expected = lines.filter((_, index) => index % 2);
+  assert.equal(filtered.textBytes, Buffer.byteLength(expected.join('\n') + '\n'));
+  assert.equal(filtered.filenameBytes, Buffer.byteLength('[日志.log] ') * expected.length);
+  for (const filename of [false, true]) {
+    const actual = [];
+    for (let start = 0; start < filtered.total; start += 500) {
+      const view = await send({ type: 'view', ...base, request: start, start, count: 500, filename });
+      assert.equal(view.start, start);
+      assert.equal(view.rows.length, Math.min(500, expected.length - start));
+      assert.ok(view.rows.every(row => row.matches.length === 1 && row.order === 0));
+      actual.push(...view.rows.map(row => row.text));
+    }
+    assert.deepEqual(actual, expected.map(line => `${filename ? '[日志.log] ' : ''}${line}`));
+  }
+  const empty = await send({ type: 'filter', revision: 1, filterRevision: 2, options: [option('missing')] });
+  assert.equal(empty.textBytes, 0);
+  assert.equal(empty.filenameBytes, 0);
 });

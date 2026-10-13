@@ -118,10 +118,16 @@ function applyFilter(request: Extract<WorkerRequest, { type: 'filter' }>): void 
     activeFilters = compileFilters(request.options);
     filteredEntries = filterEntries(entries, activeFilters);
     for (const entry of filteredEntries) { offsets.push(total); total += entry.lines.length; }
+    // Count retained UTF-8 output, without retaining another full copy on the UI thread.
+    const encoder = new TextEncoder();
+    let textBytes = 0;
+    for (const chunk of outputChunks(filteredEntries, { filename: false, filenameWidth, color: false })) textBytes += encoder.encode(chunk).byteLength;
+    let filenameBytes = 0;
+    for (const entry of filteredEntries) filenameBytes += encoder.encode(formatLine('', entry.source, { filename: true, filenameWidth, color: false })).byteLength * entry.lines.length;
     resultFilterRevision = request.filterRevision;
-    reply({ type: 'filtered', revision: request.revision, filterRevision: request.filterRevision, total, entries: filteredEntries.length, durationMs: performance.now() - started });
+    reply({ type: 'filtered', revision: request.revision, filterRevision: request.filterRevision, total, entries: filteredEntries.length, textBytes, filenameBytes, durationMs: performance.now() - started });
   } catch (error) {
-    reply({ type: 'filtered', revision: request.revision, filterRevision: request.filterRevision, total: 0, entries: 0, durationMs: performance.now() - started, error: errorText(error) });
+    reply({ type: 'filtered', revision: request.revision, filterRevision: request.filterRevision, total: 0, entries: 0, textBytes: 0, filenameBytes: 0, durationMs: performance.now() - started, error: errorText(error) });
   }
 }
 

@@ -1,4 +1,4 @@
-/** Manage local files, controls, and a bounded viewport for the standalone page. The embedded worker owns parsing, cached entries, ordering, filtering, and download generation. */
+/** Manage local files, controls, and virtualized or fully searchable results. The embedded worker owns parsing, cached entries, ordering, filtering, and download generation. */
 import { sourceColor } from '../core/colors';
 import { sourceLabels } from '../core/format';
 import { describeTimezone } from '../core/timezone';
@@ -27,6 +27,11 @@ const reverse = element<HTMLInputElement>('reverse');
 const noFilename = element<HTMLInputElement>('no-filename');
 const color = element<HTMLInputElement>('color');
 const verbose = element<HTMLInputElement>('verbose');
+const browserFind = element<HTMLInputElement>('browser-find');
+const findPanel = element('browser-find-panel');
+const findStatus = element('browser-find-status');
+const findContinue = element<HTMLButtonElement>('browser-find-continue');
+const findCancel = element<HTMLButtonElement>('browser-find-cancel');
 const download = element<HTMLButtonElement>('download');
 const copy = element<HTMLButtonElement>('copy');
 const copyStatus = element<HTMLSpanElement>('copy-status');
@@ -64,12 +69,21 @@ let filterRevision = 0;
 let filtering = false;
 let filterInFlight = false;
 let viewInFlight = false;
+let lastSentView = 0;
 let filterDelay: number | undefined;
 let filterWatchdog: number | undefined;
 let mergedReady = false;
 let mergedTotal = 0;
 let mergedEntries = 0;
 let mergeDuration = 0;
+let textBytes = 0;
+let filenameBytes = 0;
+let findMode: 'virtual' | 'confirm' | 'loading' | 'ready' = 'virtual';
+let loadedRows = 0;
+let findTimer: number | undefined;
+let findScrollTop = 0;
+// Approval covers this result only; presentation changes need approval again only if larger.
+let approvedFindBytes = -1;
 const rowHeight = 22;
 const maxHeight = 8000000;
 
@@ -279,6 +293,8 @@ function changeFilter(): void {
 
 function clearPreview(): void {
   cancelCopy();
+  resetFindView();
+  approvedFindBytes = -1;
   total = 0;
   rows.replaceChildren();
   spacer.style.height = '0px';
@@ -480,10 +496,11 @@ function viewportStart(): number {
 
 function requestView(): void {
   frame = 0;
-  if (!total || busy || filtering) return;
+  if (!total || busy || filtering || findMode === 'loading' || findMode === 'ready') return;
   const start = viewportStart();
   viewInFlight = true;
-  send({ type: 'view', revision, filterRevision, request: ++viewRequest, start, count: Math.ceil(viewport.clientHeight / rowHeight) + 2, filename: !noFilename.checked });
+  lastSentView = ++viewRequest;
+  send({ type: 'view', revision, filterRevision, request: lastSentView, start, count: Math.ceil(viewport.clientHeight / rowHeight) + 2, filename: !noFilename.checked });
   watchFilter();
 }
 
@@ -491,9 +508,80 @@ function scheduleView(): void {
   if (!frame) frame = requestAnimationFrame(requestView);
 }
 
+/** Invalidate queued batches before changing results, presentation, or rendering mode. */
+function resetFindView(): void {
+  window.clearTimeout(findTimer);
+  findTimer = undefined;
+  viewRequest++;
+  // An obsolete batch can still be evaluating a regex. Keep its watchdog until
+  // the worker replies (or cancelFilter terminates it), even though it cannot render.
+  findMode = 'virtual';
+  loadedRows = 0;
+  findPanel.hidden = true;
+  viewport.classList.remove('full-results');
+  viewport.removeAttribute('aria-busy');
+}
+
+function requestFindBatch(): void {
+  findTimer = undefined;
+  if (findMode !== 'loading') return;
+  viewInFlight = true;
+  lastSentView = ++viewRequest;
+  send({ type: 'view', revision, filterRevision, request: lastSentView, start: loadedRows, count: 500, filename: !noFilename.checked });
+  watchFilter();
+}
+
+function beginFindView(): void {
+  // Preserve the logical row when leaving the scaled virtual scrollbar.
+  findScrollTop = viewportStart() * rowHeight;
+  resetFindView();
+  findMode = 'loading';
+  findPanel.hidden = false;
+  findContinue.hidden = true;
+  findCancel.hidden = false;
+  findStatus.textContent = `Preparing browser Find: 0 of ${total.toLocaleString()} lines. Search is incomplete until ready.`;
+  rows.replaceChildren();
+  rows.style.top = '0px';
+  spacer.style.height = 'auto';
+  viewport.classList.add('full-results');
+  viewport.setAttribute('aria-busy', 'true');
+  requestFindBatch();
+}
+
+/** Choose a full document or the bounded preview without reparsing or refiltering. */
+function refreshView(): void {
+  const start = findMode === 'loading' || findMode === 'ready' ? Math.floor(viewport.scrollTop / rowHeight) : viewportStart();
+  resetFindView();
+  rows.replaceChildren();
+  const height = Math.min(total * rowHeight, maxHeight);
+  spacer.style.height = `${height}px`;
+  const visible = Math.max(1, Math.floor(viewport.clientHeight / rowHeight));
+  viewport.scrollTop = start / Math.max(1, total - visible) * Math.max(0, height - viewport.clientHeight);
+  if (browserFind.checked && total && !busy && !filtering) {
+    const bytes = textBytes + (noFilename.checked ? 0 : filenameBytes);
+    if ((total > 50000 || bytes > 10000000) && bytes > approvedFindBytes) {
+      findMode = 'confirm';
+      findPanel.hidden = false;
+      findContinue.hidden = false;
+      findCancel.hidden = false;
+      findStatus.textContent = `${total.toLocaleString()} retained lines (${(bytes / 1000000).toFixed(1)} MB). Making these results searchable may use substantial memory and slow this tab. Continue?`;
+    } else {
+      beginFindView();
+      return;
+    }
+  }
+  scheduleView();
+}
+
+function disableFindView(): void {
+  const restoreFocus = findPanel.contains(document.activeElement);
+  browserFind.checked = false;
+  approvedFindBytes = -1;
+  refreshView();
+  if (restoreFocus) viewport.focus({ preventScroll: true });
+}
+
 function renderRows(message: Extract<WorkerResponse, { type: 'view' }>): void {
-  if (message.request !== viewRequest) return;
-  rows.style.top = `${viewport.scrollTop}px`;
   const fragment = document.createDocumentFragment();
   for (const row of message.rows) {
     const line = document.createElement('div');
@@ -511,10 +599,32 @@ function renderRows(message: Extract<WorkerResponse, { type: 'view' }>): void {
     }
     line.append(document.createTextNode(row.text.slice(position)));
     line.dataset.order = String(row.order);
-    if (color.checked) line.style.color = sourceColor(row.order).css;
+    line.style.setProperty('--source-color', sourceColor(row.order).css);
     fragment.append(line);
   }
-  rows.replaceChildren(fragment);
+  if (findMode === 'loading') {
+    if (message.start !== loadedRows) return;
+    const block = document.createElement('div');
+    block.className = 'log-block';
+    block.append(fragment);
+    rows.append(block);
+    loadedRows += message.rows.length;
+    if (loadedRows >= total) {
+      findMode = 'ready';
+      viewport.removeAttribute('aria-busy');
+      viewport.scrollTop = findScrollTop;
+      findStatus.textContent = `Browser Find ready: all ${total.toLocaleString()} retained lines are searchable with Ctrl+F / Cmd+F.`;
+      if (document.activeElement === findCancel) viewport.focus({ preventScroll: true });
+      findCancel.hidden = true;
+    } else {
+      findStatus.textContent = `Preparing browser Find: ${loadedRows.toLocaleString()} of ${total.toLocaleString()} lines. Search is incomplete until ready.`;
+      // A task boundary lets input, cancellation, and paint run between batches.
+      findTimer = window.setTimeout(requestFindBatch, 0);
+    }
+  } else {
+    rows.style.top = `${viewport.scrollTop}px`;
+    rows.replaceChildren(fragment);
+  }
 }
 
 function updateFilenamePreview(): string | undefined {
@@ -579,6 +689,8 @@ function receive(event: MessageEvent<WorkerResponse>): void {
     filtering = false;
     showFilterError(message.error);
     total = message.total;
+    textBytes = message.textBytes;
+    filenameBytes = message.filenameBytes;
     spacer.style.height = `${Math.min(total * rowHeight, maxHeight)}px`;
     viewport.scrollTop = 0;
     element('empty').hidden = Boolean(total);
@@ -595,11 +707,13 @@ function receive(event: MessageEvent<WorkerResponse>): void {
     }
     download.textContent = filtered ? 'Download filtered .log' : 'Download .log';
     updateDownload();
-    scheduleView();
+    refreshView();
   } else if (message.type === 'view') {
-    if (message.filterRevision === filterRevision && message.request === viewRequest) {
+    if (message.request === lastSentView) {
       viewInFlight = false;
       if (!filterInFlight) { window.clearTimeout(filterWatchdog); filterWatchdog = undefined; }
+    }
+    if (message.filterRevision === filterRevision && message.request === viewRequest) {
       renderRows(message);
     }
   } else if (message.type === 'download') {
@@ -695,9 +809,18 @@ function initialize(): void {
     element(id).addEventListener('click', () => startMerge());
   }
   reverse.addEventListener('change', () => startMerge(false));
-  noFilename.addEventListener('change', () => { cancelCopy(); updateDownload(); scheduleView(); });
+  noFilename.addEventListener('change', () => { cancelCopy(); updateDownload(); refreshView(); });
+  browserFind.addEventListener('change', () => { approvedFindBytes = -1; refreshView(); });
+  findContinue.addEventListener('click', () => {
+    if (findMode !== 'confirm') return;
+    approvedFindBytes = textBytes + (noFilename.checked ? 0 : filenameBytes);
+    findCancel.focus({ preventScroll: true });
+    beginFindView();
+  });
+  findCancel.addEventListener('click', disableFindView);
+  viewport.classList.toggle('source-colors', color.checked);
   color.addEventListener('change', () => {
-    for (const row of rows.children) (row as HTMLElement).style.color = color.checked ? sourceColor(Number((row as HTMLElement).dataset.order)).css : '';
+    viewport.classList.toggle('source-colors', color.checked);
   });
   verbose.addEventListener('change', () => { element('diagnostic-panel').hidden = !verbose.checked; });
   element('expand-vertical').addEventListener('click', () => {
