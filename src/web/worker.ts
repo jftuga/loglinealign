@@ -5,7 +5,8 @@ import { mergeEntries } from '../core/merge';
 import { applyTimeShift, parseTimeShift } from '../core/time_adjustment';
 import { formatLine, outputChunks, sourceLabelWidth } from '../core/format';
 import { fallbackTimezone } from '../core/timezone';
-import { createFilter, filterEntries, matchRanges } from './filter';
+import { compileFilters, filterEntries, highlightRanges } from './filter';
+import type { CompiledFilter } from './filter';
 import type { Entry, ParsedSource, Source } from '../core/types';
 import type { FileReport, PreviewRow, WorkerRequest, WorkerResponse } from './protocol';
 
@@ -22,7 +23,7 @@ interface CachedFile {
 const cache = new Map<number, CachedFile>();
 let entries: Entry[] = [];
 let filteredEntries: Entry[] = [];
-let highlightMatcher: RegExp | undefined;
+let activeFilters: CompiledFilter[] = [];
 let offsets: number[] = [];
 let total = 0;
 let filenameWidth = 0;
@@ -41,7 +42,7 @@ async function merge(request: Extract<WorkerRequest, { type: 'merge' }>): Promis
   for (const id of cache.keys()) if (!ids.has(id)) cache.delete(id);
   entries = [];
   filteredEntries = [];
-  highlightMatcher = undefined;
+  activeFilters = [];
   offsets = [];
   total = 0;
   filenameWidth = sourceLabelWidth(request.sources.filter(source => source.included).map(source => source.label));
@@ -109,13 +110,13 @@ function applyFilter(request: Extract<WorkerRequest, { type: 'filter' }>): void 
   if (request.revision !== resultRevision || request.filterRevision !== latestFilterRevision) return;
   const started = performance.now();
   filteredEntries = [];
-  highlightMatcher = undefined;
+  activeFilters = [];
   offsets = [];
   total = 0;
   resultFilterRevision = -1;
   try {
-    filteredEntries = filterEntries(entries, request.options);
-    if (!request.options.invert) highlightMatcher = createFilter(request.options);
+    activeFilters = compileFilters(request.options);
+    filteredEntries = filterEntries(entries, activeFilters);
     for (const entry of filteredEntries) { offsets.push(total); total += entry.lines.length; }
     resultFilterRevision = request.filterRevision;
     reply({ type: 'filtered', revision: request.revision, filterRevision: request.filterRevision, total, entries: filteredEntries.length, durationMs: performance.now() - started });
@@ -146,7 +147,7 @@ function view(request: Extract<WorkerRequest, { type: 'view' }>): void {
       const text = formatLine(original, entry.source, { filename: request.filename, filenameWidth, color: false });
       const prefixLength = text.length - original.length;
       // Only visible original log text is searched; generated labels cannot become matches.
-      const matches = matchRanges(original, highlightMatcher).map(([start, end]): [number, number] => [start + prefixLength, end + prefixLength]);
+      const matches = highlightRanges(original, activeFilters).map(range => ({ ...range, start: range.start + prefixLength, end: range.end + prefixLength }));
       rows.push({ text, order: entry.source.order, matches });
     }
   }

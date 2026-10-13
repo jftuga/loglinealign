@@ -43,8 +43,8 @@ main{padding:0 36px}
 .file-heading label{display:flex;align-items:center;gap:7px;flex:1;min-width:0}
 .file-name{overflow-wrap:anywhere}
 .swatch{height:8px;width:8px;flex:none;border-radius:50%}
-.trash{padding:6px;line-height:0}
-.trash svg{width:17px;height:17px}
+.trash,.icon-button{padding:6px;line-height:0}
+.trash svg,.icon-button svg{width:17px;height:17px}
 .file-row input[type=text]{font-family:ui-monospace,monospace;font-size:11px}
 .format-label{display:block;font-size:11px;color:var(--muted);margin:10px 0 6px}
 .detected-format{display:block;font:11px/1.6 ui-monospace,monospace;overflow-wrap:anywhere;color:var(--text)}
@@ -82,7 +82,10 @@ code{font-family:ui-monospace,monospace;color:#c9dccd;overflow-wrap:anywhere}
 .tool-actions .primary{min-width:110px}
 .controls-collapsed .tool-frame{display:none}
 .tool-panel{padding:18px}
-.filter-label{display:block;font-size:12px;margin-bottom:7px}
+.filter-heading{display:flex;align-items:center;gap:10px;font-size:12px;margin-bottom:12px}
+.filter-row+.filter-row{border-top:1px solid var(--border);margin-top:14px;padding-top:14px}
+.filter-row .swatch{background:var(--filter-color)}
+.filter-label{display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:7px}
 .filter-controls{position:relative;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .filter-controls>input{flex:1 1 160px;min-width:0}
 .filter-invert{display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap}
@@ -94,7 +97,7 @@ code{font-family:ui-monospace,monospace;color:#c9dccd;overflow-wrap:anywhere}
 .filter-toggle:hover .filter-tooltip,.filter-toggle:focus-visible .filter-tooltip{display:block}
 .filter-bar .hint{margin-bottom:0}
 #filter-error{margin:0;padding:0 22px 14px;color:#ffc0c0;font-size:12px;line-height:1.5}
-#filter-text[aria-invalid=true]{border-color:#ffa7a7}
+.filter-controls>input[aria-invalid=true]{border-color:#ffa7a7}
 #status{padding:10px 22px 17px;color:var(--muted);font-size:12px}
 #errors{background:#382326;color:#ffc0c0;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:14px 22px;font:12px/1.6 ui-monospace,monospace}
 #warnings{display:flex;align-items:flex-start;gap:12px;background:#362e1d;color:#ffdc91;overflow-wrap:anywhere;margin:0;padding:14px 22px;font-size:13px;line-height:1.6}
