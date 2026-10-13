@@ -537,6 +537,7 @@ function beginFindView(): void {
   resetFindView();
   findMode = 'loading';
   findPanel.hidden = false;
+  findPanel.dataset.state = findMode;
   findContinue.hidden = true;
   findCancel.hidden = false;
   findStatus.textContent = `Preparing browser Find: 0 of ${total.toLocaleString()} lines. Search is incomplete until ready.`;
@@ -562,6 +563,7 @@ function refreshView(): void {
     if ((total > 50000 || bytes > 10000000) && bytes > approvedFindBytes) {
       findMode = 'confirm';
       findPanel.hidden = false;
+      findPanel.dataset.state = findMode;
       findContinue.hidden = false;
       findCancel.hidden = false;
       findStatus.textContent = `${total.toLocaleString()} retained lines (${(bytes / 1000000).toFixed(1)} MB). Making these results searchable may use substantial memory and slow this tab. Continue?`;
@@ -611,6 +613,7 @@ function renderRows(message: Extract<WorkerResponse, { type: 'view' }>): void {
     loadedRows += message.rows.length;
     if (loadedRows >= total) {
       findMode = 'ready';
+      findPanel.dataset.state = findMode;
       viewport.removeAttribute('aria-busy');
       viewport.scrollTop = findScrollTop;
       findStatus.textContent = `Browser Find ready: all ${total.toLocaleString()} retained lines are searchable with Ctrl+F / Cmd+F.`;
