@@ -27,6 +27,8 @@ make
 
 ### Build details
 
+The browser filter limit is `MAX_FILTERS` in [src/web/filter.ts](../src/web/filter.ts). Controls and matching iterate over the fields; increasing this constant enables more filters. The first three colors are fixed, with generated colors for additional fields.
+
 [package.json](../package.json) defines version/repository metadata and development dependencies; `pnpm-lock.yaml` pins resolved versions. Use pnpm for dependency changes and retain it as the only dependency lockfile. `pnpm-workspace.yaml` allows esbuild's installation script.
 
 [scripts/build.mjs](../scripts/build.mjs) bundles both artifacts without runtime dependencies. The CLI runs with Node 24+ in CommonJS or ES module projects without sibling files. The HTML embeds its application, worker, and styles; esbuild minifies the assets and html-minifier-terser minimizes HTML. The CLI remains unminified. Bundling does not type-check, so run `make check` separately.
@@ -48,18 +50,19 @@ Designed for a handful of roughly 10 MB text files, with all decoded text and en
 
 ## Verification
 
-Run `make test` or `pnpm test` after installing dependencies. Both rebuild the CLI before running `tests/*.test.mjs` with Node's built-in test runner; no additional test dependencies are required. Each test invokes the distributable in a separate process and checks output, diagnostics, exit status, or filesystem effects. Temporary fixtures are removed after each test, subprocesses have timeouts, and the subprocess timezone is pinned to UTC.
+Run `make test` or `pnpm test` after installing dependencies. Both rebuild the CLI before running `tests/*.test.mjs` with Node's built-in test runner; no additional test dependencies are required. CLI tests invoke the distributable in a separate process and check output, diagnostics, exit status, or filesystem effects. Temporary fixtures are removed after each test, subprocesses have timeouts, and the subprocess timezone is pinned to UTC.
 
 The suite covers:
 
 - All 5,175 lines in the [demo sample logs](../demo/fc-timeout/sample-logs), with timezone-aligned ascending/reverse output and the naive UTC warning. Expected timelines come from a narrow, independent fixture reader using `scenario.json` offsets, not from the production parser or recorded CLI output.
 - Unsorted and duplicate entries, stable ties, multiline blocks, nanosecond precision, timezone precedence, clock adjustments, calendar and epoch overrides, encoding, and malformed timestamps.
+- Browser filter chains with independent options, overlapping highlight colors, invalid regexes, and worker preview/copy/download agreement beyond the visible viewport. These tests bundle the browser modules with esbuild and run the worker in an isolated VM.
 - CLI argument validation, help/version, labels, colors, diagnostics, and standalone use in CommonJS and ES module projects.
 - Output creation/replacement, input protection through equivalent paths and links, parse-failure preservation, filename templates, and nonregular-file rejection. Named-pipe checks are skipped on Windows; link checks skip there only when Windows denies link creation.
 
 [Linux CI](../.github/workflows/test.yml) runs on branch pushes and pull requests with Node 24, checking types, running tests, and building the browser artifact. Release builds also require the CLI suite to pass. `make check` and builds alone do not verify runtime behavior.
 
-The CLI exercises the engine shared with the browser, but does not test browser interaction or worker integration. Automated browser tests are deferred. For browser changes, manually open the built HTML, load the sample logs, assign offsets, and check remerge, pending-settings export blocking, reverse order, filtering, copy/download contents, drag-and-drop, and responsive layouts. In particular, confirm exports include matching lines beyond the visible preview. A future browser smoke suite would automate these steps against the built standalone HTML using a browser automation runner and an installed browser.
+The CLI exercises the engine shared with the browser, but does not test browser interaction. The filter tests also exercise worker integration. Automated browser tests are deferred. For browser changes, manually open the built HTML, load the sample logs, assign offsets, and check remerge, pending-settings export blocking, reverse order, filtering, copy/download contents, drag-and-drop, and responsive layouts. In particular, confirm exports include matching lines beyond the visible preview. A future browser smoke suite would automate these steps against the built standalone HTML using a browser automation runner and an installed browser.
 
 The [demo pipeline](../demo/fc-timeout/README.md) checks aligned CLI chronology, browser source colors, reverse order, and downloaded filtered text while generating the demo. It is not a general regression suite.
 
@@ -74,6 +77,6 @@ The [demo pipeline](../demo/fc-timeout/README.md) checks aligned CLI chronology,
 7. [src/core/merge.ts](../src/core/merge.ts) — deterministic ordering and reverse tie behavior.
 8. [src/core/format.ts](../src/core/format.ts) and [src/core/colors.ts](../src/core/colors.ts) — labels, physical-line formatting, and stable colors.
 9. [src/cli/options.ts](../src/cli/options.ts), [src/cli/files.ts](../src/cli/files.ts), and [src/cli/main.ts](../src/cli/main.ts) — arguments, filesystem protection, and orchestration.
-10. [src/web/filter.ts](../src/web/filter.ts), [src/web/protocol.ts](../src/web/protocol.ts), and [src/web/worker.ts](../src/web/worker.ts) — line matching, worker messages, cache management, viewport lookup, and downloads.
-11. [src/web/time_controls.ts](../src/web/time_controls.ts), [src/web/file_drop.ts](../src/web/file_drop.ts), [src/web/main.ts](../src/web/main.ts), [src/web/index.html](../src/web/index.html), and [src/web/styles.css](../src/web/styles.css) — per-file time controls, application-wide file drops, browser state, and presentation.
+10. [src/web/filter.ts](../src/web/filter.ts), [src/web/protocol.ts](../src/web/protocol.ts), and [src/web/worker.ts](../src/web/worker.ts) — line matching, cascading filters and highlight ranges, worker messages, cache management, viewport lookup, and downloads.
+11. [src/web/filter_controls.ts](../src/web/filter_controls.ts), [src/web/time_controls.ts](../src/web/time_controls.ts), [src/web/file_drop.ts](../src/web/file_drop.ts), [src/web/main.ts](../src/web/main.ts), [src/web/index.html](../src/web/index.html), and [src/web/styles.css](../src/web/styles.css) — per-file time controls, application-wide file drops, browser state, and presentation.
 12. [package.json](../package.json), [tsconfig.json](../tsconfig.json), [scripts/build.mjs](../scripts/build.mjs), and [Makefile](../Makefile) — version metadata, strict checking, bundling, and artifact assembly.

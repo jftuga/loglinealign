@@ -39,7 +39,7 @@ This creates `dist/loglinealign.html` and `dist/loglinealign.js`. Each is self-c
 2. Drop your log files onto the page or select **Choose files**. They are selected and merged automatically. Leave **Format override** blank unless automatic detection reports a problem.
 3. For timestamps without offsets, set each **File timezone** to its source's UTC offset, or use **Fallback timezone** in **Merge Settings** if they share one. Select **Remerge** after changing these settings.
 4. Review the timeline. Use **Search / Filter** to keep matching lines, or **Merge Settings** to reverse the order or hide filename prefixes.
-5. Use **Copy** or open **Download** to save the result. Both include all retained lines, including those outside the visible preview. Clear the filter to export the complete merge.
+5. Use **Copy** or open **Download** to save the result. Both include all retained lines, including those outside the visible preview. Clear all filters to export the complete merge.
 
 Format, timezone, and time-adjustment edits remain pending until you remerge; downloads are disabled while settings are pending. The page includes **Formats & usage** help for offline use. See the [browser guide](docs/browser.md) for detailed controls and filtering behavior.
 

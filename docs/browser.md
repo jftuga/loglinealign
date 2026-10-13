@@ -32,7 +32,9 @@ Switching tabs preserves the collapsed state. Dropping files in the expanded log
 
 ## Browser text filter
 
-In **Search / Filter**, **Filter logs** searches original text, including timestamps, and excludes generated filename prefixes. The default is a case-insensitive literal search; spaces are significant. Options can be combined:
+In **Search / Filter**, **Filter logs** searches original text, including timestamps, and excludes generated filename prefixes. Use the small **Add filter** icon to add up to three fields. Filters apply in order: the second searches only lines retained by the first, and the third searches only lines retained by both earlier filters. Each field has its own options and a color swatch matching its preview highlights. The add icon is disabled at the limit. The trashcan removes a field and immediately reapplies the remaining filters; deleting the last field resets its text and options while keeping it visible.
+
+The default is a case-insensitive literal search; spaces are significant. Each filter independently supports these options, which can be combined:
 
 | Option | Behavior |
 | --- | --- |
@@ -45,13 +47,13 @@ Filtering evaluates each physical line independently. It can retain a stack-trac
 
 Whole-word boundaries treat Unicode letters, combining marks, numbers, and underscores as word characters. Searching for whole-word `error` matches `error-handler`, but excludes `errors` and `_error`. In regex mode, boundaries surround the complete regex match.
 
-The preview highlights nonoverlapping matches. Empty queries, inverted results, and zero-width matches have no visible highlights. **Clear** restores all lines while retaining matching options; an empty query shows everything even with inversion enabled. Source diagnostics describe the original inputs; result counts describe the filtered output.
+The preview highlights each filter’s matches in a different color: yellow, blue, and pink. Overlapping matches use a split background showing all contributing colors. Empty queries, inverted filters, and zero-width matches add no visible highlights; other filters still highlight their matches. **Clear** empties only that field while retaining its options. An empty field has no effect, even with inversion enabled; clear every field to restore all lines. Source diagnostics describe the original inputs; result counts describe the filtered output.
 
-Invalid regexes clear the preview and show an error. Matching that takes about five seconds is stopped. Correct, simplify, or clear the query to recover without reselecting files. Filtering is available only in the browser.
+Invalid regexes clear the preview, identify the filter in the error, and mark its field. Matching that takes about five seconds is stopped. Correct, simplify, or clear the query to recover without reselecting files. Filtering is available only in the browser.
 
 ## Copy and download
 
-**Copy** and **Download** export all retained lines as plain text, including lines outside the visible preview. Both honor filtering, ordering, and **No filename**, even with controls hidden. Neither adds colors or highlights; ANSI sequences already in the input remain. Clear the filter to export the complete merge. Copy reports success or clipboard errors beside its button.
+**Copy** and **Download** export all retained lines as plain text, including lines outside the visible preview. Both honor filtering, ordering, and **No filename**, even with controls hidden. Neither adds colors or highlights; ANSI sequences already in the input remain. Clear all filters to export the complete merge. Copy reports success or clipboard errors beside its button.
 
 Leave **Download filename** blank to use `merge--%Y%m%d.%H%M%S.log`, or enter a custom name or [filename template](formats.md#filename-templates). The preview updates as you type or open Download. Each click captures the template and current local time; subsequent edits affect later downloads.
 

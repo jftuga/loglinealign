@@ -4,10 +4,11 @@ import { sourceLabels } from '../core/format';
 import { describeTimezone } from '../core/timezone';
 import { formatTimeShift, parseTimeShift } from '../core/time_adjustment';
 import { defaultFilenameTemplate, expandFilenameTemplate } from '../core/filename_template';
-import { createFilter } from './filter';
+import { filterColor } from './filter';
+import { createFilterControls } from './filter_controls';
+import { trashIcon } from './icons';
 import { createTimeControls } from './time_controls';
 import { initializeFileDrop } from './file_drop';
-import type { FilterOptions } from './filter';
 import type { FileReport, WebSource, WorkerRequest, WorkerResponse } from './protocol';
 
 declare const __VERSION__: string;
@@ -38,11 +39,7 @@ const status = element<HTMLParagraphElement>('status');
 const errors = element<HTMLPreElement>('errors');
 const warnings = element<HTMLDivElement>('warnings');
 const warningText = element<HTMLSpanElement>('warning-text');
-const filterText = element<HTMLInputElement>('filter-text');
-const filterCase = element<HTMLButtonElement>('filter-case');
-const filterWord = element<HTMLButtonElement>('filter-word');
-const filterRegex = element<HTMLButtonElement>('filter-regex');
-const filterInvert = element<HTMLInputElement>('filter-invert');
+let filters: ReturnType<typeof createFilterControls>;
 const filterError = element<HTMLParagraphElement>('filter-error');
 const tabs = ['sources-tab', 'filter-tab', 'settings-tab', 'download-tab', 'help-tab'].map(id => element<HTMLButtonElement>(id));
 const sources: WebSource[] = [];
@@ -199,14 +196,9 @@ async function copyOutput(): Promise<void> {
   }
 }
 
-function readFilter(): FilterOptions {
-  return { text: filterText.value, matchCase: filterCase.getAttribute('aria-pressed') === 'true', wholeWord: filterWord.getAttribute('aria-pressed') === 'true', regex: filterRegex.getAttribute('aria-pressed') === 'true', invert: filterInvert.checked };
-}
-
 function showFilterError(message = ''): void {
   filterError.hidden = !message;
   filterError.textContent = message;
-  filterText.setAttribute('aria-invalid', String(Boolean(message)));
 }
 
 function cancelFilter(): void {
@@ -244,7 +236,7 @@ function watchFilter(): void {
 function requestFilter(): void {
   filterDelay = undefined;
   if (!mergedReady || busy) return;
-  try { createFilter(readFilter()); }
+  try { filters.validate(); }
   catch (error) {
     showFilterError(error instanceof Error ? error.message : String(error));
     filtering = false;
@@ -257,18 +249,17 @@ function requestFilter(): void {
   filterInFlight = true;
   clearPreview();
   status.textContent = 'Filtering merged logs…';
-  send({ type: 'filter', revision, filterRevision, options: readFilter() });
+  send({ type: 'filter', revision, filterRevision, options: filters.read() });
   watchFilter();
 }
 
 function changeFilter(): void {
-  element('filter-help').textContent = filterInvert.checked ? 'Keep nonmatching lines in the preview and download (grep -v). An empty filter shows all lines.' : 'Keep matching lines in the preview and download. Matches are highlighted in the preview only.';
   filterRevision++;
   downloading = false;
   window.clearTimeout(filterDelay);
   showFilterError();
   clearPreview();
-  try { createFilter(readFilter()); }
+  try { filters.validate(); }
   catch (error) {
     cancelFilter();
     showFilterError(error instanceof Error ? error.message : String(error));
@@ -417,7 +408,7 @@ function renderFiles(): void {
     remove.setAttribute('aria-label', `Remove ${source.label}`);
     remove.title = 'Remove from this session';
     // This icon is static trusted markup; filenames and log text always use textContent.
-    remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 10v7M14 10v7"/></svg>';
+    remove.innerHTML = trashIcon;
     remove.addEventListener('click', () => removeSource(source.id));
     heading.append(label, remove);
     const format = document.createElement('input');
@@ -508,10 +499,13 @@ function renderRows(message: Extract<WorkerResponse, { type: 'view' }>): void {
     const line = document.createElement('div');
     line.className = 'log-row';
     let position = 0;
-    for (const [start, end] of row.matches) {
+    for (const { start, end, filters: matchedFilters } of row.matches) {
       line.append(document.createTextNode(row.text.slice(position, start)));
       const mark = document.createElement('mark');
       mark.textContent = row.text.slice(start, end);
+      const colors = matchedFilters.map(filterColor);
+      mark.style.background = colors.length === 1 ? colors[0]! : `linear-gradient(to bottom, ${colors.map((color, index) => `${color} ${index * 100 / colors.length}% ${(index + 1) * 100 / colors.length}%`).join(', ')})`;
+      mark.title = `Matched filters: ${matchedFilters.map(index => index + 1).join(', ')}`;
       line.append(mark);
       position = end;
     }
@@ -588,13 +582,14 @@ function receive(event: MessageEvent<WorkerResponse>): void {
     spacer.style.height = `${Math.min(total * rowHeight, maxHeight)}px`;
     viewport.scrollTop = 0;
     element('empty').hidden = Boolean(total);
-    const filtered = filterText.value !== '';
+    const activeFilters = filters.read().filter(filter => filter.text !== '');
+    const filtered = activeFilters.length > 0;
     const summary = filtered ? `${total.toLocaleString()} of ${mergedTotal.toLocaleString()} lines · ${message.entries.toLocaleString()} of ${mergedEntries.toLocaleString()} entries` : `${total.toLocaleString()} lines · ${mergedEntries.toLocaleString()} entries`;
-    const noMatches = filterInvert.checked ? 'No nonmatching lines' : 'No matching lines';
-    status.textContent = message.error ? 'Correct the filter to view and download results.' : !sources.some(source => source.included) ? 'No files selected.' : !mergedTotal ? 'Selected files are empty.' : !total ? `${noMatches} (${mergedTotal.toLocaleString()} lines searched).` : `${summary}${filtered && filterInvert.checked ? ' · inverted' : ''} · ${reverse.checked ? 'newest first' : 'oldest first'} · ${(mergeDuration + message.durationMs).toFixed(0)} ms${pending ? ' · merge settings pending' : ''}`;
+    const noMatches = 'No lines match all filters';
+    status.textContent = message.error ? 'Correct the filter to view and download results.' : !sources.some(source => source.included) ? 'No files selected.' : !mergedTotal ? 'Selected files are empty.' : !total ? `${noMatches} (${mergedTotal.toLocaleString()} lines searched).` : `${summary}${filtered ? ` · ${activeFilters.length} active filter${activeFilters.length === 1 ? '' : 's'}` : ''} · ${reverse.checked ? 'newest first' : 'oldest first'} · ${(mergeDuration + message.durationMs).toFixed(0)} ms${pending ? ' · merge settings pending' : ''}`;
     const empty = element('empty');
     if (!total && mergedTotal && filtered) {
-      empty.textContent = message.error ? 'Correct the filter to show results.' : `${noMatches}. Change or clear the filter.`;
+      empty.textContent = message.error ? 'Correct the filter to show results.' : `${noMatches}. Change or clear the filters.`;
     } else {
       empty.textContent = 'Your merged logs will appear here.';
     }
@@ -692,15 +687,7 @@ function initialize(): void {
     timezone.focus();
   });
   element('dismiss-warning').addEventListener('click', () => { warnings.hidden = true; viewport.focus({ preventScroll: true }); });
-  filterText.addEventListener('input', changeFilter);
-  filterInvert.addEventListener('change', changeFilter);
-  for (const button of [filterCase, filterWord, filterRegex]) {
-    button.addEventListener('click', () => {
-      button.setAttribute('aria-pressed', String(button.getAttribute('aria-pressed') !== 'true'));
-      changeFilter();
-    });
-  }
-  element('filter-clear').addEventListener('click', () => { filterText.value = ''; changeFilter(); filterText.focus(); });
+  filters = createFilterControls(element('filter-list'), element<HTMLTemplateElement>('filter-template'), element<HTMLButtonElement>('filter-add'), element('filter-count'), changeFilter);
   picker.addEventListener('change', () => { if (picker.files?.length) addFiles(picker.files); picker.value = ''; });
   initializeFileDrop(element('drop-overlay'), receiveDroppedFiles);
   timezone.addEventListener('input', markPending);
