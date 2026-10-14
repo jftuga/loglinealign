@@ -41,7 +41,7 @@ This creates `dist/loglinealign.html` and `dist/loglinealign.js`. Each is self-c
 4. Review the timeline. Use **Search / Filter** to keep matching lines, or **Merge Settings** to reverse the order or hide filename prefixes.
 5. Use **Copy** or open **Download** to save the result. Both include all retained lines, including those outside the visible preview. Clear all filters to export the complete merge.
 
-Format, timezone, and time-adjustment edits remain pending until you remerge; downloads are disabled while settings are pending. The page includes **Formats & usage** help for offline use. See the [browser guide](docs/browser.md) for detailed controls and filtering behavior.
+Format, timezone, and time-adjustment edits remain pending until you remerge; downloads are disabled while settings are pending. Text fields remember their five most recent values, and **Save / Load** keeps named profiles of all settings in browser storage. The page includes **Formats & usage** help for offline use. See the [browser guide](docs/browser.md) for detailed controls and filtering behavior.
 
 ## CLI
 

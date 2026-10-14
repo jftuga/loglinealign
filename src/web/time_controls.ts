@@ -1,6 +1,7 @@
 /** Build per-file timezone and adjustment controls for the Sources panel. Edits notify the application that settings are pending; they never start a merge directly. */
 import { fallbackTimezone } from '../core/timezone';
 import { formatTimeShift, parseTimeShift } from '../core/time_adjustment';
+import { acceptValid, attachTextHistory } from './history_input';
 import type { WebSource } from './protocol';
 
 const steps = new WeakMap<WebSource, string>();
@@ -51,6 +52,9 @@ export function createTimeControls(source: WebSource, onChange: () => void): Doc
     help.className = 'hint';
     help.textContent = timezone ? 'UTC or ±HH:MM for timestamps without an offset. Blank inherits the global fallback.' : 'Positive = later; negative = earlier. Original log text stays unchanged. Apply with Remerge.';
     container.append(label, input, help);
+    if (timezone) attachTextHistory(input, 'file-timezone', 'Recent file timezones', value => acceptValid(value.trim(), fallbackTimezone));
+    // A zero adjustment is the default, so it is not worth remembering.
+    else attachTextHistory(input, 'time-shift', 'Recent time adjustments', value => acceptValid(value.trim(), shift => parseTimeShift(shift) !== 0n));
     if (timezone) continue;
     const actions = document.createElement('div');
     actions.className = 'time-adjustment-actions';
