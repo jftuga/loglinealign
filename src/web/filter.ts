@@ -16,6 +16,15 @@ export interface FilterOptions {
   invert: boolean;
 }
 
+export const emptyFilter: FilterOptions = { text: '', matchCase: false, wholeWord: false, regex: false, invert: false };
+
+/** Validate filter options read back from browser storage. */
+export function isFilterOptions(value: unknown): value is FilterOptions {
+  if (typeof value !== 'object' || value === null) return false;
+  const options = value as Record<string, unknown>;
+  return typeof options.text === 'string' && ['matchCase', 'wholeWord', 'regex', 'invert'].every(key => typeof options[key] === 'boolean');
+}
+
 export type MatchRange = [start: number, end: number];
 
 export interface HighlightRange {

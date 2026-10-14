@@ -30,7 +30,37 @@ The full view preserves source colors, filter highlights, and ordering. Active f
 
 More than 50,000 retained lines or 10 MB of retained UTF-8 output (including displayed prefixes and line breaks) triggers a warning with **Continue** and **Cancel**. These are advisory thresholds, not hard limits or estimates of browser memory use. Filtering or remerging checks the new result again. Filename changes rebuild the view and can require confirmation if the output grows beyond the previously approved size. Large results may slow the tab or exhaust memory.
 
-Preparation runs in batches with progress and a **Cancel** button. Cancel, or uncheck the option, to return to the lightweight preview and release the extra page elements. The warning and progress controls remain available with the controls hidden or results expanded. Copy and Download still export all retained lines while the view is being prepared. Changing filters, order, or filenames rebuilds the searchable view and may reset an active browser Find selection. The setting lasts only for the current page session.
+Preparation runs in batches with progress and a **Cancel** button. Cancel, or uncheck the option, to return to the lightweight preview and release the extra page elements. The warning and progress controls remain available with the controls hidden or results expanded. Copy and Download still export all retained lines while the view is being prepared. Changing filters, order, or filenames rebuilds the searchable view and may reset an active browser Find selection. Like the other Merge Settings checkboxes, the setting is remembered in browser storage and restored when the page opens; see [Field history and saved profiles](#field-history-and-saved-profiles).
+
+## Field history and saved profiles
+
+All of this data lives in the browser's local storage for this page, on this device only. Log contents are never stored. Private windows or browser settings can disable or discard it; the page works the same without it.
+
+### Recent values
+
+These fields remember their five most recent values: **Format override**, **File timezone**, **Time adjustment**, **Fallback timezone**, **Download filename**, and each **Filter logs** field. Each field type has one history, shared by all files or all filter fields. A value is recorded when you leave the field or press Enter, and only if it is nonblank and valid. A `+00:00` adjustment is not recorded, and neither are values set with **Earlier**, **Later**, or **Reset**. Format overrides keep their literal leading and trailing spaces.
+
+Typing in a field lists the remembered values that contain the typed text, ignoring case. ArrowDown lists all of them. Use ArrowUp/ArrowDown and Enter, or click, to choose a value; Escape closes the list. Choosing a value works the same as typing it, so format and timezone changes still wait for **Remerge**. **Clear history**, always the last entry, forgets that field type's values.
+
+A filter history entry stores the text along with its **Match case**, **Match whole word**, **Regular expression**, and **Invert match** options. It is recorded when focus leaves the filter's row, so options toggled after typing are included. The list shows the enabled options in brackets, and choosing an entry restores all of them.
+
+The **Merge Settings** checkboxes are remembered whenever they change and restored when the page opens.
+
+### Save / Load
+
+The **Save / Load** tab stores named profiles. A profile contains:
+
+- Each loaded file's include state, Format override, File timezone, and Time adjustment, keyed by filename
+- Fallback timezone
+- Every filter field, including its options
+- The Merge Settings checkboxes
+- Download filename
+
+Enter a name and select **Save**. Saving under an existing name asks before replacing it. To restore a profile, select it under **Saved profiles** and choose **Load**: every setting is applied, and loaded files are remerged. Each saved file setting applies to one loaded file with the same name, matched in order when names repeat. Saved settings for files that are not loaded apply when a file with that name is added later in the session.
+
+After a load, **Expected files** lists every saved filename as **Loaded** or **Missing**, with a count, and updates as you add or remove files. Removing a matched file marks it missing again; adding it back reapplies its saved settings. The page cannot open files by name or path, so add missing files with **Choose files** in **Sources** or by dropping them anywhere on the page; you can add all of them at once. The list stays until another profile is loaded or the page is reloaded. **Delete** removes the selected profile after confirmation.
+
+**Clear all** deletes every saved profile, field history, and remembered Merge Settings value for LogLineAlign after confirmation. Current page settings stay until you reload. It removes only this page's keys; storage that other local pages share in the same browser is left alone.
 
 ## Navigate and show controls
 

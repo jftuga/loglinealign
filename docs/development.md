@@ -29,6 +29,8 @@ make
 
 The browser filter limit is `MAX_FILTERS` in [src/web/filter.ts](../src/web/filter.ts). Controls and matching iterate over the fields; increasing this constant enables more filters. The first three colors are fixed, with generated colors for additional fields.
 
+Browser storage keys all start with `loglinealign:` ([src/web/storage.ts](../src/web/storage.ts)), so **Clear all** removes only this page's data even where browsers share one storage origin across `file://` pages. The history size is `HISTORY_LIMIT` in [src/web/history.ts](../src/web/history.ts). Saved profiles carry a format `version` ([src/web/profiles.ts](../src/web/profiles.ts)); profiles with another version or a malformed shape are ignored, not partially applied.
+
 [package.json](../package.json) defines version/repository metadata and development dependencies; `pnpm-lock.yaml` pins resolved versions. Use pnpm for dependency changes and retain it as the only dependency lockfile. `pnpm-workspace.yaml` allows esbuild's installation script.
 
 [scripts/build.mjs](../scripts/build.mjs) bundles both artifacts without runtime dependencies. The CLI runs with Node 24+ in CommonJS or ES module projects without sibling files. The HTML embeds its application, worker, and styles; esbuild minifies the assets and html-minifier-terser minimizes HTML. The CLI remains unminified. Bundling does not type-check, so run `make check` separately.

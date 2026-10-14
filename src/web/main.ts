@@ -3,10 +3,18 @@ import { sourceColor } from '../core/colors';
 import { sourceLabels } from '../core/format';
 import { describeTimezone } from '../core/timezone';
 import { formatTimeShift, parseTimeShift } from '../core/time_adjustment';
-import { defaultFilenameTemplate, expandFilenameTemplate } from '../core/filename_template';
+import { defaultFilenameTemplate, expandFilenameTemplate, validateFilenameTemplate } from '../core/filename_template';
+import { createTimestampParser } from '../core/timestamp';
+import { fallbackTimezone } from '../core/timezone';
+import { element } from './dom';
 import { filterColor } from './filter';
 import { createFilterControls } from './filter_controls';
+import { renderExpectedFiles } from './expected_files';
+import { acceptValid, attachTextHistory } from './history_input';
 import { trashIcon } from './icons';
+import type { Profile, ProfileSettings, SavedSource } from './profiles';
+import { applyCheckboxStates, checkboxStates, rememberCheckboxes, restoreCheckboxes } from './remembered_checks';
+import { createSaveLoadControls } from './save_load_controls';
 import { createTimeControls } from './time_controls';
 import { initializeFileDrop } from './file_drop';
 import type { FileReport, WebSource, WorkerRequest, WorkerResponse } from './protocol';
@@ -15,12 +23,6 @@ declare const __VERSION__: string;
 declare const __REPOSITORY__: string;
 declare const __WORKER_CODE__: string;
 
-function element<T extends HTMLElement>(id: string): T {
-  const found = document.getElementById(id);
-  if (!found) throw new Error(`Missing interface element: ${id}`);
-  return found as T;
-}
-
 const picker = element<HTMLInputElement>('file-picker');
 const timezone = element<HTMLInputElement>('timezone');
 const reverse = element<HTMLInputElement>('reverse');
@@ -28,6 +30,7 @@ const noFilename = element<HTMLInputElement>('no-filename');
 const color = element<HTMLInputElement>('color');
 const verbose = element<HTMLInputElement>('verbose');
 const browserFind = element<HTMLInputElement>('browser-find');
+const mergeChecks = [reverse, noFilename, color, verbose, browserFind];
 const findPanel = element('browser-find-panel');
 const findStatus = element('browser-find-status');
 const findContinue = element<HTMLButtonElement>('browser-find-continue');
@@ -46,11 +49,14 @@ const warnings = element<HTMLDivElement>('warnings');
 const warningText = element<HTMLSpanElement>('warning-text');
 let filters: ReturnType<typeof createFilterControls>;
 const filterError = element<HTMLParagraphElement>('filter-error');
-const tabs = ['sources-tab', 'filter-tab', 'settings-tab', 'download-tab', 'help-tab'].map(id => element<HTMLButtonElement>(id));
+const tabs = ['sources-tab', 'filter-tab', 'settings-tab', 'download-tab', 'profiles-tab', 'help-tab'].map(id => element<HTMLButtonElement>(id));
 const sources: WebSource[] = [];
 const names: string[] = [];
 const reports = new Map<number, FileReport>();
 const appliedSettings = new Map<number, Pick<WebSource, 'format' | 'timezone' | 'timeShift'>>();
+// Per-file settings from the last loaded profile, each matched to at most one loaded source.
+let expectedProfile = '';
+let expectedFiles: { saved: SavedSource; sourceId?: number }[] = [];
 let appliedTimezone = '';
 let revision = 0;
 let viewRequest = 0;
@@ -342,18 +348,37 @@ function addFiles(files: FileList | File[]): void {
   for (const file of Array.from(files)) {
     const id = names.length;
     names.push(file.name);
-    sources.push({ id, order: id, name: file.name, label: file.name, file, included: true, format: '', timezone: '', timeShift: '+00:00' });
+    const source: WebSource = { id, order: id, name: file.name, label: file.name, file, included: true, format: '', timezone: '', timeShift: '+00:00' };
+    applySavedSource(source);
+    sources.push(source);
   }
   const labels = sourceLabels(names);
   for (const source of sources) source.label = labels[source.id]!;
+  showExpectedFiles();
   renderFiles();
   startMerge();
+}
+
+/** Apply the first unmatched saved settings with the same filename; each saved entry applies to one file. */
+function applySavedSource(source: WebSource): void {
+  const expected = expectedFiles.find(item => item.sourceId === undefined && item.saved.name === source.name);
+  if (!expected) return;
+  expected.sourceId = source.id;
+  const { included, format, timezone, timeShift } = expected.saved;
+  Object.assign(source, { included, format, timezone, timeShift });
+}
+
+function showExpectedFiles(): void {
+  renderExpectedFiles(expectedProfile, expectedFiles.map(item => ({ name: item.saved.name, loaded: item.sourceId !== undefined })));
 }
 
 function removeSource(id: number): void {
   const index = sources.findIndex(source => source.id === id);
   if (index < 0) return;
   sources.splice(index, 1);
+  // A removed file is missing again; adding it back reapplies its saved settings.
+  for (const item of expectedFiles) if (item.sourceId === id) item.sourceId = undefined;
+  showExpectedFiles();
   reports.delete(id);
   appliedSettings.delete(id);
   renderFiles();
@@ -474,6 +499,8 @@ function renderFiles(): void {
     const formatControls = document.createElement('div');
     formatControls.className = 'format-controls';
     formatControls.append(formatLabel, format, detectedLabel, detected);
+    // Overrides keep literal leading and trailing spaces, so remember them untrimmed.
+    attachTextHistory(format, 'format', 'Recent format overrides', value => acceptValid(value, override => createTimestampParser(override, undefined)));
     fields.append(formatControls, createTimeControls(source, markPending));
     row.append(heading, fields, report);
     container.append(row);
@@ -741,6 +768,41 @@ function receive(event: MessageEvent<WorkerResponse>): void {
   }
 }
 
+/** Apply checkbox settings that change presentation without a merge or view rebuild. */
+function showPresentation(): void {
+  viewport.classList.toggle('source-colors', color.checked);
+  element('diagnostic-panel').hidden = !verbose.checked;
+}
+
+function captureProfile(): ProfileSettings {
+  return {
+    sources: sources.map(({ name, included, format, timezone, timeShift }) => ({ name, included, format, timezone, timeShift })),
+    timezone: timezone.value,
+    checks: checkboxStates(mergeChecks),
+    filters: filters.read(),
+    downloadName: downloadName.value,
+  };
+}
+
+/** Apply every saved setting, list the files it expects, and remerge loaded files. */
+function applyProfile(name: string, profile: Profile): string {
+  expectedProfile = name;
+  expectedFiles = profile.sources.map(saved => ({ saved }));
+  for (const source of sources) applySavedSource(source);
+  showExpectedFiles();
+  timezone.value = profile.timezone;
+  applyCheckboxStates(mergeChecks, profile.checks);
+  rememberCheckboxes(mergeChecks);
+  showPresentation();
+  downloadName.value = profile.downloadName;
+  updateFilenamePreview();
+  renderFiles();
+  // Merge first: the filter change then waits for this merge instead of starting one with old settings.
+  if (sources.length) startMerge();
+  filters.write(profile.filters);
+  return `Loaded "${name}".`;
+}
+
 /** Shows or hides the panel a disclosure button controls and returns the new expanded state. */
 function setDisclosure(button: HTMLButtonElement, expanded: boolean): boolean {
   button.setAttribute('aria-expanded', String(expanded));
@@ -792,6 +854,8 @@ function initialize(): void {
   document.addEventListener('click', event => {
     if (!element('identity-links').contains(event.target as Node)) setDisclosure(disclaimerToggle, false);
   });
+  restoreCheckboxes(mergeChecks);
+  for (const check of mergeChecks) check.addEventListener('change', () => rememberCheckboxes(mergeChecks));
   worker = createWorker();
   for (const tab of tabs) {
     tab.addEventListener('click', () => selectTab(tab));
@@ -808,6 +872,7 @@ function initialize(): void {
   picker.addEventListener('change', () => { if (picker.files?.length) addFiles(picker.files); picker.value = ''; });
   initializeFileDrop(element('drop-overlay'), receiveDroppedFiles);
   timezone.addEventListener('input', markPending);
+  attachTextHistory(timezone, 'fallback-timezone', 'Recent fallback timezones', value => acceptValid(value.trim(), fallbackTimezone));
   for (const id of ['remerge', 'remerge-sources']) {
     element(id).addEventListener('click', () => startMerge());
   }
@@ -821,17 +886,17 @@ function initialize(): void {
     beginFindView();
   });
   findCancel.addEventListener('click', disableFindView);
-  viewport.classList.toggle('source-colors', color.checked);
-  color.addEventListener('change', () => {
-    viewport.classList.toggle('source-colors', color.checked);
-  });
-  verbose.addEventListener('change', () => { element('diagnostic-panel').hidden = !verbose.checked; });
+  showPresentation();
+  color.addEventListener('change', showPresentation);
+  verbose.addEventListener('change', showPresentation);
   element('expand-vertical').addEventListener('click', () => {
     setVerticalExpanded(!document.body.classList.contains('expanded-vertical'));
   });
   viewport.addEventListener('scroll', scheduleView, { passive: true });
   new ResizeObserver(scheduleView).observe(viewport);
   downloadName.addEventListener('input', updateFilenamePreview);
+  attachTextHistory(downloadName, 'download-name', 'Recent download filenames', value => acceptValid(value.trim(), validateFilenameTemplate));
+  createSaveLoadControls(captureProfile, applyProfile);
   copy.addEventListener('click', copyOutput);
   updateFilenamePreview();
   download.addEventListener('click', () => {
