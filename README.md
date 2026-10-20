@@ -85,6 +85,19 @@ Run `make test` or `pnpm test` to rebuild the CLI and run its automated regressi
 - [Development](docs/development.md): builds, verification, and source study order.
 - [Demo and sample logs](demo/fc-timeout/README.md): reproduce the incident shown in the video.
 
-## License
+## Personal Project Disclosure
 
-[MIT](LICENSE).
+This program is my own original idea, conceived and developed entirely:
+
+* On my own personal time, outside of work hours
+* For my own personal benefit and use
+* On my personally owned equipment
+* Without using any employer resources, proprietary information, or trade secrets
+* Without any connection to my employer's business, products, or services
+* Independent of any duties or responsibilities of my employment
+
+This project does not relate to my employer's actual or demonstrably
+anticipated research, development, or business activities. No
+confidential or proprietary information from any employer was used
+in its creation.
+
